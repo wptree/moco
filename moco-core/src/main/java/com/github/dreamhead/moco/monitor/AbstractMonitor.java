@@ -1,23 +1,23 @@
 package com.github.dreamhead.moco.monitor;
 
-import com.github.dreamhead.moco.HttpRequest;
 import com.github.dreamhead.moco.MocoMonitor;
-import io.netty.handler.codec.http.FullHttpResponse;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.Response;
 
 public abstract class AbstractMonitor implements MocoMonitor {
     @Override
-    public void onMessageArrived(final HttpRequest request) {
+    public void onMessageArrived(final Request request) {
     }
 
     @Override
-    public void onException(final Exception e) {
+    public void onException(final Throwable t) {
     }
 
     @Override
-    public void onMessageLeave(final FullHttpResponse response) {
+    public void onMessageLeave(final Response response) {
     }
 
     @Override
-    public void onUnexpectedMessage(final HttpRequest request) {
+    public void onUnexpectedMessage(final Request request) {
     }
 }

@@ -2,16 +2,10 @@ package com.github.dreamhead.moco;
 
 import com.google.common.collect.ImmutableMap;
 
-public interface HttpRequest {
+public interface HttpRequest extends Request, HttpMessage {
     String getUri();
 
-    String getMethod();
+    HttpMethod getMethod();
 
-    HttpProtocolVersion getVersion();
-
-    String getContent();
-
-    ImmutableMap<String, String> getHeaders();
-
-    ImmutableMap<String, String> getQueries();
+    ImmutableMap<String, String[]> getQueries();
 }

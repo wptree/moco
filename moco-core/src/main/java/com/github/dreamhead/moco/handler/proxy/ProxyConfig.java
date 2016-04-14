@@ -9,7 +9,7 @@ public class ProxyConfig {
     private final String localBase;
     private final String remoteBase;
 
-    public ProxyConfig(String localBase, String remoteBase) {
+    public ProxyConfig(final String localBase, final String remoteBase) {
         this.localBase = localBase;
         this.remoteBase = remoteBase;
     }
@@ -22,28 +22,29 @@ public class ProxyConfig {
         return this.remoteBase;
     }
 
-    public boolean canAccessedBy(String uri) {
+    public boolean canAccessedBy(final String uri) {
         return uri.startsWith(localBase);
     }
 
-    public String remoteUrl(String uri) {
+    public String remoteUrl(final String uri) {
         String relative = nullToEmpty(uri.replaceFirst(this.localBase, ""));
         return join(remoteBase, relative);
     }
 
-    public static Builder builder(String localBase) {
+    public static Builder builder(final String localBase) {
         return new Builder(localBase);
     }
 
     public static class Builder {
         private final String localBase;
 
-        public Builder(String localBase) {
+        public Builder(final String localBase) {
             this.localBase = localBase;
         }
 
         public ProxyConfig to(final String remoteBase) {
-            return new ProxyConfig(toBase(localBase), toBase(checkNotNullOrEmpty(remoteBase, "Remote base should not be null")));
+            return new ProxyConfig(toBase(localBase),
+                    toBase(checkNotNullOrEmpty(remoteBase, "Remote base should not be null")));
         }
     }
 }

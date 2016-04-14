@@ -1,9 +1,10 @@
 package com.github.dreamhead.moco.handler;
 
-import com.github.dreamhead.moco.internal.SessionContext;
+import com.github.dreamhead.moco.HttpRequest;
+import com.github.dreamhead.moco.MutableHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-public class StatusCodeResponseHandler extends AbstractResponseHandler {
+public class StatusCodeResponseHandler extends AbstractHttpResponseHandler {
     private final HttpResponseStatus status;
 
     public StatusCodeResponseHandler(final int code) {
@@ -11,7 +12,7 @@ public class StatusCodeResponseHandler extends AbstractResponseHandler {
     }
 
     @Override
-    public void writeToResponse(final SessionContext context) {
-        context.getResponse().setStatus(status);
+    protected void doWriteToResponse(final HttpRequest httpRequest, final MutableHttpResponse httpResponse) {
+        httpResponse.setStatus(status.code());
     }
 }

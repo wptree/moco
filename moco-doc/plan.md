@@ -7,19 +7,15 @@
 
 ### Handler
 * Template function
+* Path variables extraction
 
 ## More
-* REST
-
-## Client
-* Socket
+* Client
 
 # Document
 * Cookbook
 
 # Tools Support
-* JUnit better support
-* homebrew
 * IntelliJ IDEA plugin
 * Eclipse plugin
 * Runtime configuration change

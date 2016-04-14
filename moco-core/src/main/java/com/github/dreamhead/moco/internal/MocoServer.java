@@ -1,54 +1,44 @@
 package com.github.dreamhead.moco.internal;
 
+import com.github.dreamhead.moco.MocoException;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.util.concurrent.Future;
 
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.SocketAddress;
-import java.util.concurrent.Callable;
-
-import static com.github.dreamhead.moco.internal.Awaiter.awaitUntil;
+import java.util.concurrent.TimeUnit;
 
 public class MocoServer {
-    private static final int DEFAULT_TIMEOUT = 3;
-    private EventLoopGroup bossGroup;
-    private EventLoopGroup workerGroup;
+    private EventLoopGroup group;
     private ChannelFuture future;
-    private InetSocketAddress address;
 
     public MocoServer() {
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+        group = new NioEventLoopGroup();
     }
 
-    public int start(final int port, ChannelHandler pipelineFactory) {
+    public int start(final int port, final ChannelInitializer<? extends Channel> pipelineFactory) {
         ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.group(bossGroup, workerGroup)
+        bootstrap.group(group)
                 .channel(NioServerSocketChannel.class)
                 .childHandler(pipelineFactory);
 
         try {
             future = bootstrap.bind(port).sync();
             SocketAddress socketAddress = future.channel().localAddress();
-            address = (InetSocketAddress) socketAddress;
-            return address.getPort();
+            return ((InetSocketAddress) socketAddress).getPort();
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw new MocoException(e);
         }
     }
 
     public void stop() {
         doStop();
-        if (address != null) {
-            awaitUntil(serverIsClosed(address), DEFAULT_TIMEOUT);
-            address = null;
-        }
     }
 
     private void doStop() {
@@ -57,32 +47,14 @@ public class MocoServer {
             future = null;
         }
 
-        if (bossGroup != null) {
-            bossGroup.shutdownGracefully();
-            bossGroup = null;
-        }
-
-
-        if (workerGroup != null) {
-            workerGroup.shutdownGracefully();
-            workerGroup = null;
-        }
-    }
-
-    private Callable<Boolean> serverIsClosed(final InetSocketAddress address) {
-        return new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                try {
-                    Socket socket = new Socket();
-                    socket.connect(address);
-                    return false;
-                } catch (ConnectException e) {
-                    return true;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+        if (group != null) {
+            Future<?> groupFuture = group.shutdownGracefully(0, 0, TimeUnit.SECONDS);
+            try {
+                groupFuture.get();
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
             }
-        };
+            group = null;
+        }
     }
 }

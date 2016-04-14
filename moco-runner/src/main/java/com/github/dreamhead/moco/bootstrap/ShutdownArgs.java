@@ -1,17 +1,23 @@
 package com.github.dreamhead.moco.bootstrap;
 
-import org.apache.commons.cli.*;
+import com.github.dreamhead.moco.bootstrap.parser.StartArgsParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 public class ShutdownArgs extends ShutdownPortOption {
-    public ShutdownArgs(Integer shutdownPort) {
+    public ShutdownArgs(final Integer shutdownPort) {
         super(shutdownPort);
     }
 
-    public static ShutdownArgs parse(String[] args) {
+    public static ShutdownArgs parse(final String[] args) {
         try {
-            CommandLineParser parser = new PosixParser();
+            CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(createShutdownOptions(), args);
-            return new ShutdownArgs(StartArgs.getPort(cmd.getOptionValue("s")));
+            return new ShutdownArgs(StartArgsParser.getPort(cmd.getOptionValue("s")));
         } catch (ParseException e) {
             throw new ParseArgException("fail to parse arguments", e);
         }

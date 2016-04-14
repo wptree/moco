@@ -1,18 +1,20 @@
 package com.github.dreamhead.moco.matcher;
 
+import com.github.dreamhead.moco.Request;
 import com.github.dreamhead.moco.RequestExtractor;
 import com.github.dreamhead.moco.RequestMatcher;
 import com.github.dreamhead.moco.resource.Resource;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
 import java.util.Arrays;
 
 public class EqRequestMatcher<T> extends AbstractOperatorMatcher<T> {
     public EqRequestMatcher(final RequestExtractor<T> extractor, final Resource expected) {
-        super(extractor, expected, new Predicate<String>() {
+        super(extractor, expected, new Predicate<byte[]>() {
             @Override
-            public boolean apply(String input) {
-                return input != null && Arrays.equals(input.getBytes(), expected.readFor(null));
+            public boolean apply(final byte[] input) {
+                return Arrays.equals(input, expected.readFor(Optional.<Request>absent()).getContent());
             }
         });
     }

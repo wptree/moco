@@ -1,8 +1,6 @@
 package com.github.dreamhead.moco;
 
 import com.github.dreamhead.moco.helper.MocoTestHelper;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.message.BasicNameValuePair;
 import org.junit.Before;
@@ -11,12 +9,10 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static com.github.dreamhead.moco.HttpsCertificate.certificate;
 import static com.github.dreamhead.moco.Moco.*;
-import static com.github.dreamhead.moco.Moco.form;
 import static com.github.dreamhead.moco.MocoRequestHit.*;
-import static com.github.dreamhead.moco.RemoteTestUtils.port;
-import static com.github.dreamhead.moco.RemoteTestUtils.remoteUrl;
-import static com.github.dreamhead.moco.RemoteTestUtils.root;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.*;
 import static com.github.dreamhead.moco.Runner.running;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -25,6 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 public class MocoRequestHitTest {
+    private final HttpsCertificate DEFAULT_CERTIFICATE = certificate(pathResource("cert.jks"), "mocohttps", "mocohttps");
+
     private MocoTestHelper helper;
     private RequestHit hit;
 
@@ -37,7 +35,7 @@ public class MocoRequestHitTest {
     @Test
     public void should_monitor_server_behavior() throws Exception {
         final MocoMonitor monitor = mock(MocoMonitor.class);
-        final HttpServer server = httpserver(port(), monitor);
+        final HttpServer server = httpServer(port(), monitor);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -48,14 +46,14 @@ public class MocoRequestHitTest {
         });
 
         verify(monitor).onMessageArrived(any(HttpRequest.class));
-        verify(monitor).onMessageLeave(any(FullHttpResponse.class));
+        verify(monitor).onMessageLeave(any(HttpResponse.class));
         verify(monitor, Mockito.never()).onException(any(Exception.class));
     }
 
     @Test
     public void should_monitor_server_behavior_without_port() throws Exception {
         final MocoMonitor monitor = mock(MocoMonitor.class);
-        final HttpServer server = httpserver(monitor);
+        final HttpServer server = httpServer(monitor);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -66,13 +64,13 @@ public class MocoRequestHitTest {
         });
 
         verify(monitor).onMessageArrived(any(HttpRequest.class));
-        verify(monitor).onMessageLeave(any(FullHttpResponse.class));
+        verify(monitor).onMessageLeave(any(HttpResponse.class));
         verify(monitor, Mockito.never()).onException(any(Exception.class));
     }
 
     @Test
     public void should_verify_expected_request() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -87,13 +85,13 @@ public class MocoRequestHitTest {
 
     @Test(expected = VerificationException.class)
     public void should_fail_to_verify_while_expectation_can_not_be_met() throws Exception {
-        httpserver(port(), hit);
+        httpServer(port(), hit);
         hit.verify(by(uri("/foo")), times(1));
     }
 
     @Test
     public void should_verify_expected_request_for_at_least() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -107,15 +105,32 @@ public class MocoRequestHitTest {
         hit.verify(by(uri("/foo")), atLeast(1));
     }
 
+    @Test
+    public void should_verify_expected_request_for_between() throws Exception {
+        final HttpServer server = httpServer(port(), hit);
+        server.get(by(uri("/foo"))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/foo")), is("bar"));
+                assertThat(helper.get(remoteUrl("/foo")), is("bar"));
+                assertThat(helper.get(remoteUrl("/foo")), is("bar"));
+            }
+        });
+
+        hit.verify(by(uri("/foo")), between(1, 3));
+    }
+
     @Test(expected = VerificationException.class)
     public void should_fail_to_verify_at_least_expected_request_while_expectation_can_not_be_met() throws Exception {
-        httpserver(port(), hit);
+        httpServer(port(), hit);
         hit.verify(by(uri("/foo")), atLeast(1));
     }
 
     @Test
     public void should_verify_expected_request_for_at_most() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -131,7 +146,7 @@ public class MocoRequestHitTest {
 
     @Test(expected = VerificationException.class)
     public void should_fail_to_verify_at_most_expected_request_while_expectation_can_not_be_met() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
         running(server, new Runnable() {
             @Override
@@ -146,7 +161,7 @@ public class MocoRequestHitTest {
 
     @Test
     public void should_verify_expected_request_for_once() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -161,13 +176,13 @@ public class MocoRequestHitTest {
 
     @Test(expected = VerificationException.class)
     public void should_fail_to_verify_while_once_expectation_can_not_be_met() throws Exception {
-        httpserver(port(), hit);
+        httpServer(port(), hit);
         hit.verify(by(uri("/foo")), times(1));
     }
 
     @Test
     public void should_verify_unexpected_request_without_unexpected_request() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
@@ -182,7 +197,7 @@ public class MocoRequestHitTest {
 
     @Test
     public void should_verify_unexpected_request_with_unexpected_request() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
 
         running(server, new Runnable() {
             @Override
@@ -199,7 +214,7 @@ public class MocoRequestHitTest {
 
     @Test(expected = VerificationException.class)
     public void should_fail_to_verify_while_unexpected_request_expectation_can_not_be_met() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
 
         running(server, new Runnable() {
             @Override
@@ -221,7 +236,7 @@ public class MocoRequestHitTest {
 
     @Test
     public void should_verify_form_data() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.post(eq(form("name"), "dreamhead")).response("foobar");
 
         running(server, new Runnable() {
@@ -237,7 +252,7 @@ public class MocoRequestHitTest {
 
     @Test
     public void should_verify_form_data_even_if_no_server_expectation() throws Exception {
-        final HttpServer server = httpserver(port(), hit);
+        final HttpServer server = httpServer(port(), hit);
         server.response("foobar");
 
         running(server, new Runnable() {
@@ -249,5 +264,35 @@ public class MocoRequestHitTest {
         });
 
         hit.verify(eq(form("name"), "dreamhead"), once());
+    }
+
+    @Test
+    public void should_verify_expected_request_and_log_at_same_time() throws Exception {
+        final HttpServer server = httpServer(port(), hit, log());
+        server.get(by(uri("/foo"))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/foo")), is("bar"));
+            }
+        });
+
+        hit.verify(by(uri("/foo")), times(1));
+    }
+
+    @Test
+    public void should_verify_expected_request_and_log_at_same_time_for_https() throws Exception {
+        final HttpServer server = httpsServer(port(), DEFAULT_CERTIFICATE, hit, log());
+        server.get(by(uri("/foo"))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteHttpsUrl("/foo")), is("bar"));
+            }
+        });
+
+        hit.verify(by(uri("/foo")), times(1));
     }
 }

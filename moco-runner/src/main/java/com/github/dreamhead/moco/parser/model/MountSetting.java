@@ -1,18 +1,22 @@
 package com.github.dreamhead.moco.parser.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.github.dreamhead.moco.ResponseHandler;
 import com.github.dreamhead.moco.mount.MountPredicate;
 import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
 
 import java.util.List;
 
 import static com.github.dreamhead.moco.MocoMount.exclude;
 import static com.github.dreamhead.moco.MocoMount.include;
 import static com.google.common.collect.ImmutableList.of;
-import static com.google.common.collect.Iterables.*;
+import static com.google.common.collect.Iterables.concat;
+import static com.google.common.collect.Iterables.toArray;
+import static com.google.common.collect.Iterables.transform;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
-public class MountSetting {
+public class MountSetting extends ResponseSetting {
     private String dir;
     private String uri;
     private List<String> includes = of();
@@ -27,19 +31,15 @@ public class MountSetting {
     }
 
     public MountPredicate[] getMountPredicates() {
-        return toArray(toMountPredicates(), MountPredicate.class);
-    }
-
-    private Iterable<MountPredicate> toMountPredicates() {
-        return unmodifiableIterable(concat(
+        return toArray(concat(
                 transform(includes, toInclude()),
-                transform(excludes, toExclude())));
+                transform(excludes, toExclude())), MountPredicate.class);
     }
 
     private Function<String, MountPredicate> toInclude() {
         return new Function<String, MountPredicate>() {
             @Override
-            public MountPredicate apply(String input) {
+            public MountPredicate apply(final String input) {
                 return include(input);
             }
         };
@@ -48,9 +48,33 @@ public class MountSetting {
     private Function<String, MountPredicate> toExclude() {
         return new Function<String, MountPredicate>() {
             @Override
-            public MountPredicate apply(String input) {
+            public MountPredicate apply(final String input) {
                 return exclude(input);
             }
         };
+    }
+
+    public ResponseHandler getResponseHandler() {
+        return this.asResponseSetting().getResponseHandler();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .omitNullValues()
+                .add("dir", dir)
+                .add("uri", uri)
+                .add("includes", toStringList(includes))
+                .add("excludes", toStringList(excludes))
+                .add("response", super.toString())
+                .toString();
+    }
+
+    private List<String> toStringList(final List<String> includes) {
+        if (includes.isEmpty()) {
+            return null;
+        }
+
+        return includes;
     }
 }

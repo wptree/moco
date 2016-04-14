@@ -1,26 +1,31 @@
 package com.github.dreamhead.moco.resource;
 
 import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.resource.reader.Variable;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
-import java.io.File;
+import java.nio.charset.Charset;
 
-import static com.github.dreamhead.moco.resource.ResourceFactory.*;
+import static com.github.dreamhead.moco.resource.ResourceFactory.fileResource;
+import static com.github.dreamhead.moco.resource.ResourceFactory.cookieResource;
+import static com.github.dreamhead.moco.resource.ResourceFactory.templateResource;
+import static com.github.dreamhead.moco.resource.ResourceFactory.uriResource;
 
-public class ResourceConfigApplierFactory {
-    public static ResourceConfigApplier DO_NOTHING_APPLIER = new ResourceConfigApplier() {
+public final class ResourceConfigApplierFactory {
+    public static final ResourceConfigApplier DO_NOTHING_APPLIER = new ResourceConfigApplier() {
         @Override
-        public Resource apply(MocoConfig config, Resource resource) {
+        public Resource apply(final MocoConfig config, final Resource resource) {
             return resource;
         }
     };
 
-    public static ResourceConfigApplier fileConfigApplier(final String id, final File file) {
+    public static ResourceConfigApplier fileConfigApplier(final String id, final Resource file) {
         return new SelfResourceConfigApplier(id) {
             @Override
             @SuppressWarnings("unchecked")
-            protected Resource newResource(MocoConfig config) {
-                return fileResource(new File((String)config.apply(file.getName())));
+            protected Resource newResource(final MocoConfig config) {
+                return fileResource(file, Optional.<Charset>absent(), Optional.of(config));
             }
         };
     }
@@ -28,16 +33,18 @@ public class ResourceConfigApplierFactory {
     public static ResourceConfigApplier cookieConfigApplier(final String key, final Resource cookieResource) {
         return new EmbeddedResourceConfigApplier(cookieResource) {
             @Override
-            protected Resource newResource(MocoConfig config) {
+            protected Resource newResource(final MocoConfig config) {
                 return cookieResource(key, cookieResource.apply(config));
             }
         };
     }
 
-    public static ResourceConfigApplier templateConfigApplier(final ContentResource template, final ImmutableMap<String, String> variables) {
+    public static ResourceConfigApplier templateConfigApplier(
+            final ContentResource template,
+            final ImmutableMap<String, ? extends Variable> variables) {
         return new EmbeddedResourceConfigApplier(template) {
             @Override
-            protected Resource newResource(MocoConfig config) {
+            protected Resource newResource(final MocoConfig config) {
                 return templateResource((ContentResource) template.apply(config), variables);
             }
         };
@@ -47,18 +54,19 @@ public class ResourceConfigApplierFactory {
     public static ResourceConfigApplier uriConfigApplier(final String id, final String uri) {
         return new SelfResourceConfigApplier(id) {
             @Override
-            protected Resource newResource(MocoConfig config) {
-                return uriResource((String)config.apply(uri));
+            protected Resource newResource(final MocoConfig config) {
+                return uriResource((String) config.apply(uri));
             }
         };
     }
 
-    private static abstract class BaseResourceConfigAppllier implements ResourceConfigApplier {
-        protected abstract Resource newResource(MocoConfig config);
+    private abstract static class BaseResourceConfigApplier implements ResourceConfigApplier {
+        protected abstract Resource newResource(final MocoConfig config);
+
         protected abstract String id();
 
         @Override
-        public Resource apply(MocoConfig config, Resource resource) {
+        public Resource apply(final MocoConfig config, final Resource resource) {
             if (config.isFor(id())) {
                 return newResource(config);
             }
@@ -67,10 +75,10 @@ public class ResourceConfigApplierFactory {
         }
     }
 
-    private static abstract class SelfResourceConfigApplier extends BaseResourceConfigAppllier {
+    private abstract static class SelfResourceConfigApplier extends BaseResourceConfigApplier {
         private String id;
 
-        private SelfResourceConfigApplier(String id) {
+        private SelfResourceConfigApplier(final String id) {
             this.id = id;
         }
 
@@ -80,10 +88,10 @@ public class ResourceConfigApplierFactory {
         }
     }
 
-    private static abstract class EmbeddedResourceConfigApplier extends BaseResourceConfigAppllier {
+    private abstract static class EmbeddedResourceConfigApplier extends BaseResourceConfigApplier {
         private Resource resource;
 
-        private EmbeddedResourceConfigApplier(Resource resource) {
+        private EmbeddedResourceConfigApplier(final Resource resource) {
             this.resource = resource;
         }
 
@@ -93,5 +101,6 @@ public class ResourceConfigApplierFactory {
         }
     }
 
-    private ResourceConfigApplierFactory() {}
+    private ResourceConfigApplierFactory() {
+    }
 }

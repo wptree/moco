@@ -1,16 +1,20 @@
 package com.github.dreamhead.moco.extractor;
 
-import com.github.dreamhead.moco.HttpRequest;
+import com.github.dreamhead.moco.Request;
 import com.github.dreamhead.moco.RequestExtractor;
+import com.github.dreamhead.moco.model.MessageContent;
 import com.google.common.base.Optional;
 
 import static com.google.common.base.Optional.of;
-import static com.google.common.base.Strings.isNullOrEmpty;
 
-public class ContentRequestExtractor implements RequestExtractor<String> {
+public class ContentRequestExtractor implements RequestExtractor<byte[]> {
     @Override
-    public Optional<String> extract(final HttpRequest request) {
-        String content = request.getContent();
-        return isNullOrEmpty(content) ? Optional.<String>absent() : of(content);
+    public Optional<byte[]> extract(final Request request) {
+        MessageContent content = request.getContent();
+        if (content.hasContent()) {
+            return of(content.getContent());
+        }
+
+        return Optional.absent();
     }
 }

@@ -1,44 +1,27 @@
 package com.github.dreamhead.moco.dumper;
 
 import com.github.dreamhead.moco.HttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
+import com.github.dreamhead.moco.Request;
+import com.google.common.base.Joiner;
 import io.netty.util.internal.StringUtil;
 
-public class HttpRequestDumper extends HttpMessageBaseDumper<HttpRequest> {
-    public String dump(HttpRequest request) {
+import static com.github.dreamhead.moco.dumper.HttpDumpers.asContent;
+
+public class HttpRequestDumper implements Dumper<Request> {
+    private final Joiner.MapJoiner headerJoiner = Joiner.on(StringUtil.NEWLINE).withKeyValueSeparator(": ");
+
+    @Override
+    public String dump(final Request request) {
+        HttpRequest httpRequest = (HttpRequest) request;
         StringBuilder buf = new StringBuilder();
-        appendRequestProtocolLine(request, buf);
-        buf.append(StringUtil.NEWLINE);
-        headerJoiner.appendTo(buf, request.getHeaders());
-
-        long contentLength = getContentLength(request, -1);
-        if (contentLength > 0) {
-            buf.append(StringUtil.NEWLINE);
-            buf.append(StringUtil.NEWLINE);
-            buf.append(request.getContent());
-        }
-
+        buf.append(requestProtocolLine(httpRequest))
+                .append(StringUtil.NEWLINE)
+                .append(headerJoiner.join(httpRequest.getHeaders()))
+                .append(asContent(httpRequest));
         return buf.toString();
     }
 
-    private void appendRequestProtocolLine(HttpRequest request, StringBuilder buf) {
-        buf.append(request.getMethod());
-        buf.append(' ');
-        buf.append(request.getUri());
-        buf.append(' ');
-        buf.append(request.getVersion().text());
-    }
-
-    private long getContentLength(HttpRequest request, long defaultValue) {
-        String contengLengthHeader = request.getHeaders().get(HttpHeaders.Names.CONTENT_LENGTH);
-        if (contengLengthHeader != null) {
-            try {
-                return Long.parseLong(contengLengthHeader);
-            } catch (NumberFormatException e) {
-                return defaultValue;
-            }
-        }
-
-        return defaultValue;
+    private String requestProtocolLine(final HttpRequest request) {
+        return request.getMethod().name() + ' ' + request.getUri() + ' ' + request.getVersion().text();
     }
 }

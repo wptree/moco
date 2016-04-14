@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.io.CharSource.wrap;
+import static io.netty.channel.ChannelHandler.Sharable;
 
 public class ShutdownMocoRunnerWatcher implements MocoRunnerWatcher {
     private static Logger logger = LoggerFactory.getLogger(ShutdownMocoRunnerWatcher.class);
@@ -25,25 +26,27 @@ public class ShutdownMocoRunnerWatcher implements MocoRunnerWatcher {
     private final ShutdownListener shutdownListener;
     private int port;
 
-    public ShutdownMocoRunnerWatcher(Optional<Integer> shutdownPort, String shutdownKey, ShutdownListener shutdownListener) {
+    public ShutdownMocoRunnerWatcher(final Optional<Integer> shutdownPort,
+                                     final String shutdownKey,
+                                     final ShutdownListener shutdownListener) {
         this.shutdownPort = shutdownPort;
         this.shutdownKey = shutdownKey;
         this.shutdownListener = shutdownListener;
     }
 
     public void startMonitor() {
-        int port = server.start(this.shutdownPort.or(0), new ChannelInitializer<SocketChannel>() {
+        int actualPort = server.start(this.shutdownPort.or(0), new ChannelInitializer<SocketChannel>() {
             @Override
-            protected void initChannel(SocketChannel ch) throws Exception {
+            protected void initChannel(final SocketChannel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
                 pipeline.addLast("decoder", new StringDecoder());
                 pipeline.addLast("handler", new ShutdownHandler());
             }
         });
 
-        this.port = port;
+        this.port = actualPort;
 
-        logger.info("Shutdown port is {}", port);
+        logger.info("Shutdown port is {}", actualPort);
     }
 
     public void stopMonitor() {
@@ -54,11 +57,12 @@ public class ShutdownMocoRunnerWatcher implements MocoRunnerWatcher {
         return port;
     }
 
+    @Sharable
     private class ShutdownHandler extends SimpleChannelInboundHandler<String> {
         private final ExecutorService service = Executors.newCachedThreadPool();
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+        protected void channelRead0(final ChannelHandlerContext ctx, final String msg) throws Exception {
             if (shouldShutdown(msg)) {
                 shutdownListener.onShutdown();
                 shutdownMonitorSelf();
@@ -74,7 +78,7 @@ public class ShutdownMocoRunnerWatcher implements MocoRunnerWatcher {
             });
         }
 
-        private boolean shouldShutdown(String message) {
+        private boolean shouldShutdown(final String message) {
             try {
                 return shutdownKey.equals(wrap(message).readFirstLine());
             } catch (IOException e) {

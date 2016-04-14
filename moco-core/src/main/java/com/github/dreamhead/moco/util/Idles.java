@@ -1,13 +1,18 @@
 package com.github.dreamhead.moco.util;
 
-public class Idles {
-    public static void idle(long idle) {
+import com.github.dreamhead.moco.MocoException;
+
+import java.util.concurrent.TimeUnit;
+
+public final class Idles {
+    public static void idle(final long duration, final TimeUnit unit) {
         try {
-            Thread.sleep(idle);
+            unit.sleep(duration);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw new MocoException(e);
         }
     }
 
-    private Idles() {}
+    private Idles() {
+    }
 }

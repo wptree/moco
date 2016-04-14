@@ -10,13 +10,13 @@ import java.io.File;
 import java.io.FileFilter;
 
 public class FileMocoRunnerWatcher implements MocoRunnerWatcher {
-    public static final int INTERVAL = 1000;
+    public static final long INTERVAL = 1000;
     private static Logger logger = LoggerFactory.getLogger(FileMocoRunnerWatcher.class);
 
     private final FileAlterationMonitor monitor;
     private boolean running = false;
 
-    public FileMocoRunnerWatcher(File file, FileAlterationListener listener) {
+    public FileMocoRunnerWatcher(final File file, final FileAlterationListener listener) {
         this.monitor = monitorFile(file, listener);
     }
 
@@ -40,19 +40,27 @@ public class FileMocoRunnerWatcher implements MocoRunnerWatcher {
         }
     }
 
-    private FileAlterationMonitor monitorFile(File file, FileAlterationListener listener) {
+    private FileAlterationMonitor monitorFile(final File file, final FileAlterationListener listener) {
         File parentFile = file.getParentFile();
-        File directory = (parentFile == null) ? new File(".") : parentFile;
+        File directory = toDirectory(parentFile);
         FileAlterationObserver observer = new FileAlterationObserver(directory, sameFile(file));
         observer.addListener(listener);
 
         return new FileAlterationMonitor(INTERVAL, observer);
     }
 
+    private File toDirectory(final File parentFile) {
+        if (parentFile == null) {
+            return new File(".");
+        }
+
+        return parentFile;
+    }
+
     private FileFilter sameFile(final File file) {
         return new FileFilter() {
             @Override
-            public boolean accept(File detectedFile) {
+            public boolean accept(final File detectedFile) {
                 return file.getName().equals(detectedFile.getName());
             }
         };

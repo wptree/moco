@@ -1,96 +1,114 @@
 package com.github.dreamhead.moco.internal;
 
 import com.github.dreamhead.moco.HttpRequest;
+import com.github.dreamhead.moco.HttpResponseSetting;
 import com.github.dreamhead.moco.MocoMonitor;
 import com.github.dreamhead.moco.model.DefaultHttpRequest;
-import com.github.dreamhead.moco.setting.BaseSetting;
+import com.github.dreamhead.moco.model.DefaultMutableHttpResponse;
+import com.github.dreamhead.moco.setting.Setting;
 import com.google.common.collect.ImmutableList;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 
-import static io.netty.handler.codec.http.HttpHeaders.*;
+import static com.github.dreamhead.moco.model.DefaultMutableHttpResponse.newResponse;
+import static io.netty.channel.ChannelHandler.Sharable;
+import static io.netty.handler.codec.http.HttpHeaders.isContentLengthSet;
+import static io.netty.handler.codec.http.HttpHeaders.isKeepAlive;
+import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
+import static io.netty.handler.codec.http.HttpHeaders.setKeepAlive;
 
-
+@Sharable
 public class MocoHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-    private final ImmutableList<BaseSetting> settings;
-    private final BaseSetting anySetting;
+    private static final int DEFAULT_STATUS = HttpResponseStatus.OK.code();
+    private final ImmutableList<Setting<HttpResponseSetting>> settings;
+    private final Setting<HttpResponseSetting> anySetting;
     private final MocoMonitor monitor;
 
-    public MocoHandler(ActualHttpServer server) {
+    public MocoHandler(final ActualHttpServer server) {
         this.settings = server.getSettings();
         this.anySetting = server.getAnySetting();
         this.monitor = server.getMonitor();
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest message) throws Exception {
-        closeIfNotKeepAlive(message, ctx.writeAndFlush(handleRequest(message)));
+    protected void channelRead0(final ChannelHandlerContext ctx, final FullHttpRequest message) throws Exception {
+    	FullHttpResponse response = handleRequest(message);
+        closeIfNotKeepAlive(message, ctx.write(response));
     }
 
-    private FullHttpResponse handleRequest(FullHttpRequest message) {
+    @Override
+    public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
+        ctx.flush();
+    }
+
+    private FullHttpResponse handleRequest(final FullHttpRequest message) {
         HttpRequest request = DefaultHttpRequest.newRequest(message);
-        FullHttpResponse response = getHttpResponse(request);
+        DefaultMutableHttpResponse httpResponse = getHttpResponse(request);
+        FullHttpResponse response = httpResponse.toFullResponse();
         prepareForKeepAlive(message, response);
-        monitor.onMessageLeave(response);
+        monitor.onMessageLeave(httpResponse);
         return response;
     }
 
-    private FullHttpResponse getHttpResponse(HttpRequest request) {
+    private DefaultMutableHttpResponse getHttpResponse(final HttpRequest request) {
         try {
             monitor.onMessageArrived(request);
-            return doGetResponse(request);
+            return doGetHttpResponse(request);
         } catch (RuntimeException e) {
             monitor.onException(e);
-            return defaultResponse(request, HttpResponseStatus.BAD_REQUEST);
+            return newResponse(request, HttpResponseStatus.BAD_REQUEST.code());
         } catch (Exception e) {
             monitor.onException(e);
-            return defaultResponse(request, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            return newResponse(request, HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
         }
     }
 
-    private FullHttpResponse doGetResponse(HttpRequest request) {
-        FullHttpResponse response = defaultResponse(request, HttpResponseStatus.OK);
-        SessionContext context = new SessionContext(request, response);
+    private DefaultMutableHttpResponse doGetHttpResponse(final HttpRequest request) {
+        DefaultMutableHttpResponse httpResponse = newResponse(request, DEFAULT_STATUS);
+        SessionContext context = new SessionContext(request, httpResponse);
 
-        for (BaseSetting setting : settings) {
+        for (Setting setting : settings) {
             if (setting.match(request)) {
                 setting.writeToResponse(context);
-                return response;
+                return httpResponse;
             }
         }
 
         if (anySetting.match(request)) {
             anySetting.writeToResponse(context);
-            return response;
+            return httpResponse;
         }
 
         monitor.onUnexpectedMessage(request);
-        return defaultResponse(request, HttpResponseStatus.BAD_REQUEST);
+        return newResponse(request, HttpResponseStatus.BAD_REQUEST.code());
     }
 
-    private void closeIfNotKeepAlive(FullHttpRequest request, ChannelFuture future) {
+    private void closeIfNotKeepAlive(final FullHttpRequest request, final ChannelFuture future) {
         if (!isKeepAlive(request)) {
             future.addListener(ChannelFutureListener.CLOSE);
         }
     }
 
-    private void prepareForKeepAlive(FullHttpRequest request, FullHttpResponse response) {
+    private void prepareForKeepAlive(final FullHttpRequest request, final FullHttpResponse response) {
         if (isKeepAlive(request)) {
             setKeepAlive(response, true);
             setContentLengthForKeepAlive(response);
         }
     }
 
-    private void setContentLengthForKeepAlive(FullHttpResponse response) {
+    private void setContentLengthForKeepAlive(final FullHttpResponse response) {
         if (!isContentLengthSet(response)) {
             setContentLength(response, response.content().writerIndex());
         }
     }
 
-    private FullHttpResponse defaultResponse(HttpRequest request, HttpResponseStatus status) {
-        return new DefaultFullHttpResponse(HttpVersion.valueOf(request.getVersion().text()), status);
+    @Override
+    public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
+        monitor.onException(cause);
     }
 }

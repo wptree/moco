@@ -1,22 +1,22 @@
 package com.github.dreamhead.moco.internal;
 
-import com.github.dreamhead.moco.HttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.Response;
 
 public class SessionContext {
-    private FullHttpResponse response;
-    private HttpRequest httpRequest;
+    private final Request request;
+    private final Response response;
 
-    public SessionContext(HttpRequest httpRequest, FullHttpResponse response) {
-        this.httpRequest = httpRequest;
+    public SessionContext(final Request request, final Response response) {
+        this.request = request;
         this.response = response;
     }
 
-    public HttpRequest getRequest() {
-        return this.httpRequest;
+    public Request getRequest() {
+        return this.request;
     }
 
-    public FullHttpResponse getResponse() {
+    public Response getResponse() {
         return response;
     }
 }

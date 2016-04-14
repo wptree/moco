@@ -1,14 +1,14 @@
 package com.github.dreamhead.moco.handler;
 
+import com.github.dreamhead.moco.HttpRequest;
 import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.MutableHttpResponse;
 import com.github.dreamhead.moco.ResponseHandler;
-import com.github.dreamhead.moco.internal.SessionContext;
-import com.github.dreamhead.moco.resource.ContentResource;
 import com.github.dreamhead.moco.resource.Resource;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
 
-public class HeaderResponseHandler extends AbstractResponseHandler {
+import static com.google.common.base.Optional.of;
+
+public class HeaderResponseHandler extends AbstractHttpResponseHandler {
     private final HeaderDetector detector = new HeaderDetector();
 
     private final String name;
@@ -19,28 +19,24 @@ public class HeaderResponseHandler extends AbstractResponseHandler {
         this.resource = resource;
     }
 
+
     @Override
-    public void writeToResponse(final SessionContext context) {
-        FullHttpResponse response = context.getResponse();
-        if (detector.hasHeader(response, name)) {
-            response.headers().remove(name);
+    protected void doWriteToResponse(final HttpRequest httpRequest, final MutableHttpResponse httpResponse) {
+        if (detector.hasHeader(httpResponse, name)) {
+            httpResponse.removeHeader(name);
         }
 
-        HttpHeaders.addHeader(response, name, new String(resource.readFor(context.getRequest())));
+        String value = resource.readFor(of(httpRequest)).toString();
+        httpResponse.addHeader(name, value);
     }
 
     @Override
     public ResponseHandler apply(final MocoConfig config) {
-        ResponseHandler handler = super.apply(config);
-        if (handler != this) {
-            return handler;
+        Resource appliedResource = this.resource.apply(config);
+        if (appliedResource != this.resource) {
+            return new HeaderResponseHandler(name, appliedResource);
         }
 
-        Resource resource = this.resource.apply(config);
-        if (resource != this.resource) {
-            return new HeaderResponseHandler(name, resource);
-        }
-
-        return this;
+        return super.apply(config);
     }
 }

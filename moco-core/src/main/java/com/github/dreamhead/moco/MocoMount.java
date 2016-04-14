@@ -7,7 +7,7 @@ import static com.github.dreamhead.moco.util.Preconditions.checkNotNullOrEmpty;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.io.FilenameUtils.wildcardMatch;
 
-public class MocoMount {
+public final class MocoMount {
     public static MountTo to(final String target) {
         return new MountTo(checkNotNullOrEmpty(target, "Target should not be null"));
     }
@@ -16,7 +16,7 @@ public class MocoMount {
         checkNotNullOrEmpty(wildcard, "Wildcard should not be null");
         return new MountPredicate() {
             @Override
-            public boolean apply(String filename) {
+            public boolean apply(final String filename) {
                 return wildcardMatch(filename, wildcard);
             }
         };
@@ -30,9 +30,12 @@ public class MocoMount {
         checkNotNull(predicate);
         return new MountPredicate() {
             @Override
-            public boolean apply(String filename) {
+            public boolean apply(final String filename) {
                 return !predicate.apply(filename);
             }
         };
+    }
+
+    private MocoMount() {
     }
 }

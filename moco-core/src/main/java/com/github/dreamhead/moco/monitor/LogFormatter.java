@@ -1,10 +1,10 @@
 package com.github.dreamhead.moco.monitor;
 
-import com.github.dreamhead.moco.HttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.Response;
 
 public interface LogFormatter {
-    String format(HttpRequest request);
-    String format(FullHttpResponse response);
-    String format(Exception e);
+    String format(final Request request);
+    String format(final Response response);
+    String format(final Throwable e);
 }

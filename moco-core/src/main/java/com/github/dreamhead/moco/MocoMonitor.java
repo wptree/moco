@@ -1,18 +1,17 @@
 package com.github.dreamhead.moco;
 
 import com.google.common.eventbus.Subscribe;
-import io.netty.handler.codec.http.FullHttpResponse;
 
 public interface MocoMonitor {
     @Subscribe
-    void onMessageArrived(final HttpRequest request);
+    void onMessageArrived(final Request request);
 
     @Subscribe
-    void onException(final Exception e);
+    void onException(final Throwable t);
 
     @Subscribe
-    void onMessageLeave(final FullHttpResponse response);
+    void onMessageLeave(final Response response);
 
     @Subscribe
-    void onUnexpectedMessage(final HttpRequest request);
+    void onUnexpectedMessage(final Request request);
 }

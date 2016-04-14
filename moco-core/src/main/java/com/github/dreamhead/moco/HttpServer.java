@@ -5,24 +5,18 @@ import com.github.dreamhead.moco.handler.proxy.ProxyConfig;
 import com.github.dreamhead.moco.mount.MountPredicate;
 import com.github.dreamhead.moco.mount.MountTo;
 
-public interface HttpServer extends ResponseSetting {
-    int port();
+public interface HttpServer extends HttpResponseSetting, Server<HttpResponseSetting> {
+    HttpResponseSetting get(final RequestMatcher matcher);
 
-    Setting request(final RequestMatcher matcher);
+    HttpResponseSetting post(final RequestMatcher matcher);
 
-    Setting request(final RequestMatcher... matchers);
+    HttpResponseSetting put(final RequestMatcher matcher);
 
-    Setting get(final RequestMatcher matcher);
+    HttpResponseSetting delete(final RequestMatcher matcher);
 
-    Setting post(final RequestMatcher matcher);
+    HttpResponseSetting mount(final String dir, final MountTo target, final MountPredicate... predicates);
 
-    Setting put(final RequestMatcher matcher);
+    HttpResponseSetting proxy(final ProxyConfig config);
 
-    Setting delete(final RequestMatcher matcher);
-
-    ResponseSetting mount(final String dir, final MountTo target, final MountPredicate... predicates);
-
-    ResponseSetting proxy(final ProxyConfig config);
-
-    ResponseSetting proxy(final ProxyConfig proxyConfig, final Failover failover);
+    HttpResponseSetting proxy(final ProxyConfig proxyConfig, final Failover failover);
 }

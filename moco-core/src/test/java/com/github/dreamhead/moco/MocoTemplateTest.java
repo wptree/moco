@@ -1,6 +1,7 @@
 package com.github.dreamhead.moco;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.io.ByteStreams;
 import org.apache.http.Header;
 import org.apache.http.HttpVersion;
 import org.apache.http.ProtocolVersion;
@@ -9,16 +10,21 @@ import org.apache.http.client.fluent.Request;
 import org.apache.http.message.BasicNameValuePair;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
 
 import static com.github.dreamhead.moco.Moco.*;
-import static com.github.dreamhead.moco.RemoteTestUtils.remoteUrl;
 import static com.github.dreamhead.moco.Runner.running;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.remoteUrl;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
 import static com.google.common.collect.ImmutableMap.of;
+import static com.google.common.io.Files.toByteArray;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-public class MocoTemplateTest extends AbstractMocoTest {
+public class MocoTemplateTest extends AbstractMocoHttpTest {
     @Test
     public void should_generate_response_with_http_method() throws Exception {
         server.request(by(uri("/template"))).response(template("${req.method}"));
@@ -63,7 +69,7 @@ public class MocoTemplateTest extends AbstractMocoTest {
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                assertThat(helper.getWithHeader(remoteUrl("/template"), of("foo", "bar")), is("bar"));
+                assertThat(helper.getWithHeader(remoteUrl("/template"), ImmutableMultimap.of("foo", "bar")), is("bar"));
             }
         });
     }
@@ -198,7 +204,7 @@ public class MocoTemplateTest extends AbstractMocoTest {
     @Test
     public void should_generate_response_with_variable_map() throws Exception {
         server.request(by(uri("/template"))).response(template("${foo} ${bar}",
-                ImmutableMap.of("foo", "ANOTHER", "bar", "TEMPLATE")));
+                of("foo", var("ANOTHER"), "bar", var("TEMPLATE"))));
 
         running(server, new Runnable() {
             @Override
@@ -233,14 +239,168 @@ public class MocoTemplateTest extends AbstractMocoTest {
         });
     }
 
+//    @Test
+//    public void should_generate_response_from_file_with_variable_map() throws Exception {
+//        server.request(by(uri("/template"))).response(template(file("src/test/resources/var.template"), of("var", "TEMPLATE")));
+//
+//        running(server, new Runnable() {
+//            @Override
+//            public void run() throws Exception {
+//                assertThat(helper.get(remoteUrl("/template")), is("TEMPLATE"));
+//            }
+//        });
+//    }
+
     @Test
-    public void should_generate_response_from_file_with_variable_map() throws Exception {
-        server.request(by(uri("/template"))).response(template(file("src/test/resources/var.template"), ImmutableMap.of("var", "TEMPLATE")));
+    public void should_generate_response_with_two_variables_by_request() throws Exception {
+        server.request(by(uri("/template"))).response(template("${foo} ${bar}", "foo", jsonPath("$.book.price"), "bar", jsonPath("$.book.price")));
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                assertThat(helper.get(remoteUrl("/template")), is("TEMPLATE"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2 2"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1 1"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_with_variable_by_request() throws Exception {
+        server.request(by(uri("/template"))).response(template("${foo}", "foo", jsonPath("$.book.price")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_from_file_with_variable_by_request() throws Exception {
+        server.request(by(uri("/template"))).response(template(file("src/test/resources/var.template"), "var", jsonPath("$.book.price")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_from_file_with_two_variables_by_request() throws Exception {
+        server.request(by(uri("/template"))).response(template(file("src/test/resources/two_vars.template"), "foo", jsonPath("$.book.price"), "bar", jsonPath("$.book.price")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2 2"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1 1"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_with_two_variables_by_request_and_one_variable_is_plain_text() throws Exception {
+        server.request(by(uri("/template"))).response(template("${foo} ${bar}", "foo", jsonPath("$.book.price"), "bar", var("bar")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2 bar"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1 bar"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_from_file_with_variable_map() throws Exception {
+        server.request(by(uri("/template"))).response(template(file("src/test/resources/var.template"), of("var", jsonPath("$.book.price"))));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"2\"}}"), is("2"));
+                assertThat(helper.postContent(remoteUrl("/template"), "{\"book\":{\"price\":\"1\"}}"), is("1"));
+            }
+        });
+    }
+
+    @Test
+    public void should_generate_response_with_many_extracted_variables() throws Exception {
+        server.request(by(uri("/template"))).response(template("<#list seq as item>${item}</#list>", "seq", xpath("/request/parameters/id/text()")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.postFile(remoteUrl("/template"), "foobar.xml"), is("12"));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_file_with_template() throws Exception {
+        server.request(by(uri("/template"))).response(file(template("src/test/resources/${var}", "var", "foo.response")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/template")), is("foo.response"));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_file_with_template_and_charset() throws Exception {
+        server.request(by(uri("/template"))).response(file(template("src/test/resources/${var}", "var", "gbk.response"), Charset.forName("GBK")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.getAsBytes(remoteUrl("/template")), is(toByteArray(new File("src/test/resources/gbk.response"))));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_path_resource_with_template() throws Exception {
+        server.request(by(uri("/template"))).response(pathResource(template("${var}", "var", "foo.response")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/template")), is("foo.response"));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_path_resource_with_template_and_charset() throws Exception {
+        server.request(by(uri("/template"))).response(pathResource(template("${var}", "var", "gbk.response"), Charset.forName("GBK")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                InputStream stream = this.getClass().getClassLoader().getResourceAsStream("gbk.response");
+                assertThat(helper.getAsBytes(remoteUrl("/template")), is(ByteStreams.toByteArray(stream)));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_redirect_with_template() throws Exception {
+        server.get(by(uri("/"))).response("foo");
+        server.request(by(uri("/redirectTemplate"))).redirectTo(template("${var}", "var", root()));
+        server.redirectTo(template("${var}", "var", root()));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/redirectTemplate")), is("foo"));
+                assertThat(helper.get(remoteUrl("/anything")), is("foo"));
             }
         });
     }

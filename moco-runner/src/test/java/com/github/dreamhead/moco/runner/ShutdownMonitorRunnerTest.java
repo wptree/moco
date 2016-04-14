@@ -1,7 +1,6 @@
 package com.github.dreamhead.moco.runner;
 
-import com.github.dreamhead.moco.bootstrap.ShutdownTask;
-import com.github.dreamhead.moco.bootstrap.StartArgs;
+import com.github.dreamhead.moco.bootstrap.tasks.ShutdownTask;
 import org.apache.http.conn.HttpHostConnectException;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,8 +11,9 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import static com.github.dreamhead.moco.RemoteTestUtils.port;
-import static com.github.dreamhead.moco.RemoteTestUtils.root;
+import static com.github.dreamhead.moco.bootstrap.arg.HttpArgs.httpArgs;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.port;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -25,7 +25,7 @@ public class ShutdownMonitorRunnerTest extends AbstractRunnerTest {
     @Before
     public void setup() {
         RunnerFactory factory = new RunnerFactory(SHUTDOWN_MOCO_KEY);
-        runner = factory.createRunner(new StartArgs(port(), SHUTDOWN_PORT, "src/test/resources/foo.json", null, null, null));
+        runner = factory.createRunner(httpArgs().withPort(port()).withShutdownPort(SHUTDOWN_PORT).withConfigurationFile("src/test/resources/foo.json").build());
     }
 
     @Test(expected = HttpHostConnectException.class)
@@ -89,7 +89,7 @@ public class ShutdownMonitorRunnerTest extends AbstractRunnerTest {
     @Test(expected = HttpHostConnectException.class)
     public void should_shutdown_with_shutdown_port() throws IOException {
         RunnerFactory factory = new RunnerFactory(SHUTDOWN_MOCO_KEY);
-        runner = factory.createRunner(new StartArgs(port(), null, "src/test/resources/foo.json", null, null, null));
+        runner = factory.createRunner(httpArgs().withPort(port()).withConfigurationFile("src/test/resources/foo.json").build());
         runner.run();
 
         try {

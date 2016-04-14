@@ -1,28 +1,31 @@
 package com.github.dreamhead.moco;
 
-import com.google.common.io.ByteStreams;
+import com.google.common.net.HttpHeaders;
 import org.apache.http.Header;
 import org.apache.http.HttpVersion;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.fluent.Request;
-import org.apache.http.message.BasicNameValuePair;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.util.concurrent.TimeUnit;
 
 import static com.github.dreamhead.moco.HttpProtocolVersion.VERSION_1_0;
 import static com.github.dreamhead.moco.Moco.*;
-import static com.github.dreamhead.moco.RemoteTestUtils.remoteUrl;
-import static com.github.dreamhead.moco.RemoteTestUtils.root;
 import static com.github.dreamhead.moco.Runner.running;
-import static com.google.common.collect.ImmutableMap.of;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.remoteUrl;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
+import static com.google.common.collect.ImmutableMultimap.of;
+import static com.google.common.io.Files.toByteArray;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertThat;
 
-public class MocoTest extends AbstractMocoTest {
+public class MocoTest extends AbstractMocoHttpTest {
     @Test
     public void should_return_expected_response() throws Exception {
         server.response("foo");
@@ -72,6 +75,18 @@ public class MocoTest extends AbstractMocoTest {
     }
 
     @Test
+    public void should_return_expected_response_from_file_with_charset() throws Exception {
+        server.response(file("src/test/resources/gbk.response", Charset.forName("GBK")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                assertThat(helper.getAsBytes(root()), is(toByteArray(new File("src/test/resources/gbk.response"))));
+            }
+        });
+    }
+
+    @Test
     public void should_return_expected_response_from_path_resource() throws Exception {
         server.response(pathResource("foo.response"));
 
@@ -84,14 +99,26 @@ public class MocoTest extends AbstractMocoTest {
     }
 
     @Test
+    public void should_return_expected_response_from_path_resource_with_charset() throws Exception {
+        server.response(pathResource("gbk.response", Charset.forName("GBK")));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.getAsBytes(root()), is(toByteArray(new File("src/test/resources/gbk.response"))));
+            }
+        });
+    }
+
+    @Test
     public void should_return_expected_response_based_on_path_resource() throws Exception {
         server.request(by(pathResource("foo.request"))).response("foo");
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                InputStream asStream = this.getClass().getClassLoader().getResourceAsStream("foo.request");
-                assertThat(helper.postBytes(root(), ByteStreams.toByteArray(asStream)), is("foo"));
+                InputStream stream = this.getClass().getClassLoader().getResourceAsStream("foo.request");
+                assertThat(helper.postStream(root(), stream), is("foo"));
             }
         });
     }
@@ -131,6 +158,19 @@ public class MocoTest extends AbstractMocoTest {
     }
 
     @Test
+    public void should_match_request_with_charset_from_file() throws Exception {
+        server.request(by(file("src/test/resources/gbk.response", Charset.forName("GBK")))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                assertThat(helper.postBytes(root(), toByteArray(new File("src/test/resources/gbk.response"))),
+                        is("bar"));
+            }
+        });
+    }
+
+    @Test
     public void should_return_expected_response_based_on_specified_uri() throws Exception {
         server.request(by(uri("/foo"))).response("bar");
 
@@ -156,7 +196,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test(expected = HttpResponseException.class)
     public void should_throw_exception_even_if_match_one_of_conditions() throws Exception {
-        server.request(and(by("foo"), by(uri("/foo")))).response(text("bar"));
+        server.request(and(by("foo"), by(uri("/foo")))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -168,7 +208,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_match_request_based_on_either_matcher() throws Exception {
-        server.request(or(by("foo"), by(uri("/foo")))).response(text("bar"));
+        server.request(or(by("foo"), by(uri("/foo")))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -181,7 +221,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_match_request_based_on_not_matcher() throws Exception {
-        server.request(not(by(uri("/foo")))).response(text("bar"));
+        server.request(not(by(uri("/foo")))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -193,13 +233,25 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_match_request_based_on_simplified_either_matcher() throws Exception {
-        server.request(by("foo"), by(uri("/foo"))).response(text("bar"));
+        server.request(by("foo"), by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
             public void run() throws IOException {
                 assertThat(helper.get(remoteUrl("/foo")), is("bar"));
                 assertThat(helper.postContent(root(), "foo"), is("bar"));
+            }
+        });
+    }
+
+    @Test
+    public void should_match_get_method_by_method_api_with_http_method() throws Exception {
+        server.request(and(by(uri("/foo")), by(method(HttpMethod.GET)))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                assertThat(helper.get(remoteUrl("/foo")), is("bar"));
             }
         });
     }
@@ -218,7 +270,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test(expected = HttpResponseException.class)
     public void should_not_response_for_get_while_http_method_is_not_get() throws Exception {
-        server.get(by(uri("/foo"))).response(text("bar"));
+        server.get(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -256,7 +308,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test(expected = HttpResponseException.class)
     public void should_not_response_for_post_while_http_method_is_not_post() throws Exception {
-        server.post(by(uri("/foo"))).response(text("bar"));
+        server.post(by(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -308,16 +360,28 @@ public class MocoTest extends AbstractMocoTest {
         });
     }
 
-
     @Test
     public void should_match() throws Exception {
-        server.request(match(uri("/\\w*/foo"))).response(text("bar"));
+        server.request(match(uri("/\\w*/foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
                 assertThat(helper.get(remoteUrl("/bar/foo")), is("bar"));
                 assertThat(helper.get(remoteUrl("/blah/foo")), is("bar"));
+            }
+        });
+    }
+
+    @Test
+    public void should_match_method() throws Exception {
+        server.request(match(method("get|post"))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                assertThat(helper.get(remoteUrl("/bar/foo")), is("bar"));
+                assertThat(helper.postContent(remoteUrl("/blah/foo"), "content"), is("bar"));
             }
         });
     }
@@ -337,7 +401,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_exist_header() throws Exception {
-        server.request(exist(header("foo"))).response(text("header"));
+        server.request(exist(header("foo"))).response("header");
 
         running(server, new Runnable() {
             @Override
@@ -350,7 +414,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_starts_with() throws Exception {
-        server.request(startsWith(uri("/foo"))).response(text("bar"));
+        server.request(startsWith(uri("/foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -363,7 +427,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_starts_with_for_resource() throws Exception {
-        server.request(startsWith(header("foo"), "bar")).response(text("bar"));
+        server.request(startsWith(header("foo"), "bar")).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -376,7 +440,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_ends_with() throws Exception {
-        server.request(endsWith(uri("foo"))).response(text("bar"));
+        server.request(endsWith(uri("foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -389,7 +453,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_ends_with_for_resource() throws Exception {
-        server.request(endsWith(header("foo"), "bar")).response(text("bar"));
+        server.request(endsWith(header("foo"), "bar")).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -402,7 +466,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_contain() throws Exception {
-        server.request(contain(uri("foo"))).response(text("bar"));
+        server.request(contain(uri("foo"))).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -415,7 +479,7 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_contain_for_resource() throws Exception {
-        server.request(contain(header("foo"), "bar")).response(text("bar"));
+        server.request(contain(header("foo"), "bar")).response("bar");
 
         running(server, new Runnable() {
             @Override
@@ -446,6 +510,18 @@ public class MocoTest extends AbstractMocoTest {
             @Override
             public void run() throws IOException {
                 helper.get(remoteUrl("/foo"));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_expected_response_for_multiple_specified_query() throws Exception {
+        server.request(and(by(uri("/foo")), eq(query("param"), "blah"))).response("bar");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                assertThat(helper.get(remoteUrl("/foo?param=multiple&param=blah")), is("bar"));
             }
         });
     }
@@ -516,12 +592,12 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_return_expected_header() throws Exception {
-        server.response(header("content-type", "application/json"));
+        server.response(header(HttpHeaders.CONTENT_TYPE, "application/json"));
 
         running(server, new Runnable() {
             @Override
             public void run() throws IOException {
-                String value = Request.Get(root()).execute().returnResponse().getFirstHeader("content-type").getValue();
+                String value = Request.Get(root()).execute().returnResponse().getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
                 assertThat(value, is("application/json"));
             }
         });
@@ -529,12 +605,12 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_return_multiple_expected_header() throws Exception {
-        server.response(header("content-type", "application/json"), header("foo", "bar"));
+        server.response(header(HttpHeaders.CONTENT_TYPE, "application/json"), header("foo", "bar"));
 
         running(server, new Runnable() {
             @Override
             public void run() throws IOException {
-                String json = Request.Get(root()).execute().returnResponse().getFirstHeader("content-type").getValue();
+                String json = Request.Get(root()).execute().returnResponse().getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
                 assertThat(json, is("application/json"));
                 String bar = Request.Get(root()).execute().returnResponse().getFirstHeader("foo").getValue();
                 assertThat(bar, is("bar"));
@@ -546,7 +622,7 @@ public class MocoTest extends AbstractMocoTest {
     public void should_wait_for_awhile() throws Exception {
         final long latency = 1000;
         final long delta = 200;
-        server.response(latency(latency));
+        server.response(latency(latency, TimeUnit.MILLISECONDS));
 
         running(server, new Runnable() {
             @Override
@@ -557,6 +633,25 @@ public class MocoTest extends AbstractMocoTest {
                 long stop = System.currentTimeMillis();
                 long gap = stop - start + delta;
                 assertThat(gap, greaterThan(latency));
+                assertThat(code, is(200));
+            }
+        });
+    }
+
+    @Test
+    public void should_wait_for_awhile_with_time_unit() throws Exception {
+        final long delta = 200;
+        server.response(latency(1, TimeUnit.SECONDS));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                long start = System.currentTimeMillis();
+                helper.get(root());
+                int code = helper.getForStatus(root());
+                long stop = System.currentTimeMillis();
+                long gap = stop - start + delta;
+                assertThat(gap, greaterThan(TimeUnit.SECONDS.toMillis(1)));
                 assertThat(code, is(200));
             }
         });
@@ -597,52 +692,26 @@ public class MocoTest extends AbstractMocoTest {
     }
 
     @Test
-    public void should_match_form_value() throws Exception {
-        server.post(eq(form("name"), "dreamhead")).response("foobar");
-
-        running(server, new Runnable() {
-            @Override
-            public void run() throws Exception {
-                String content = Request.Post(root()).bodyForm(new BasicNameValuePair("name", "dreamhead")).execute().returnContent().asString();
-                assertThat(content, is("foobar"));
-            }
-        });
-    }
-
-    @Test
-    public void should_no_exception_form_get_request() throws Exception {
-        server.request(eq(form("password"), "hello")).response("foobar");
-        server.response("foobar");
-
-        running(server, new Runnable() {
-            @Override
-            public void run() throws Exception {
-                assertThat(helper.get(root()), is("foobar"));
-            }
-        });
-    }
-
-    @Test
     public void should_return_default_content_type() throws Exception {
-        server.response(with(text("foo")));
+        server.response(with("foo"));
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader("Content-Type");
-                assertThat(header.getValue(), is("text/plain; charset=UTF-8"));
+                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader(HttpHeaders.CONTENT_TYPE);
+                assertThat(header.getValue(), is("text/plain; charset=utf-8"));
             }
         });
     }
 
     @Test
     public void should_return_specified_content_type() throws Exception {
-        server.response(with(text("foo")), header("Content-Type", "text/html"));
+        server.response(with("foo"), header(HttpHeaders.CONTENT_TYPE, "text/html"));
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader("Content-Type");
+                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader(HttpHeaders.CONTENT_TYPE);
                 assertThat(header.getValue(), is("text/html"));
             }
         });
@@ -650,13 +719,26 @@ public class MocoTest extends AbstractMocoTest {
 
     @Test
     public void should_return_specified_content_type_no_matter_order() throws Exception {
-        server.response(header("Content-Type", "text/html"), with(text("foo")));
+        server.response(header(HttpHeaders.CONTENT_TYPE, "text/html"), with("foo"));
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
-                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader("Content-Type");
+                Header header = Request.Get(root()).execute().returnResponse().getFirstHeader(HttpHeaders.CONTENT_TYPE);
                 assertThat(header.getValue(), is("text/html"));
+            }
+        });
+    }
+
+    @Test
+    public void should_return_specified_content_type_with_case_insensitive() throws Exception {
+        server.response(header("content-type", "text/html"), with("foo"));
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                Header[] headers = Request.Get(root()).execute().returnResponse().getHeaders(HttpHeaders.CONTENT_TYPE);
+                assertThat(headers.length, is(1));
             }
         });
     }

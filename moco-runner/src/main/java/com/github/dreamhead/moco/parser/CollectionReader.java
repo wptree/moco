@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.copyOf;
+import static com.google.common.io.Closeables.closeQuietly;
 import static java.lang.String.format;
 
 public class CollectionReader {
@@ -24,13 +25,13 @@ public class CollectionReader {
     private final ObjectMapper mapper = new ObjectMapper();
     private final TypeFactory factory = TypeFactory.defaultInstance();
 
-    public CollectionReader(Module... modules) {
+    public CollectionReader(final Module... modules) {
         for (Module module : modules) {
             mapper.registerModule(module);
         }
     }
 
-    public <T> ImmutableList<T> read(InputStream is, Class<T> elementClass) {
+    public <T> ImmutableList<T> read(final InputStream is, final Class<T> elementClass) {
         try {
             CollectionType type = factory.constructCollectionType(List.class, elementClass);
             List<T> sessionSettings = mapper.readValue(is, type);
@@ -43,6 +44,8 @@ public class CollectionReader {
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            closeQuietly(is);
         }
     }
 }

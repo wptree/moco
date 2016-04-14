@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.github.dreamhead.moco.HttpRequest;
 import com.github.dreamhead.moco.HttpResponse;
+import com.github.dreamhead.moco.MocoException;
 import com.github.dreamhead.moco.model.HttpRequestFailoverMatcher;
 import com.github.dreamhead.moco.model.Session;
 import com.google.common.base.Optional;
@@ -25,35 +26,39 @@ import static com.google.common.collect.ImmutableList.of;
 import static com.google.common.collect.Iterables.tryFind;
 
 public class DefaultFailoverExecutor implements FailoverExecutor {
-    private static final Logger logger = LoggerFactory.getLogger(DefaultFailoverExecutor.class);
+    private static Logger logger = LoggerFactory.getLogger(DefaultFailoverExecutor.class);
+
     private final TypeFactory factory = TypeFactory.defaultInstance();
     private final ObjectMapper mapper = new ObjectMapper();
     private final File file;
 
-    public DefaultFailoverExecutor(File file) {
+    public DefaultFailoverExecutor(final File file) {
         this.file = file;
     }
 
     @Override
-    public void onCompleteResponse(HttpRequest request, HttpResponse httpResponse) {
+    public void onCompleteResponse(final HttpRequest request, final HttpResponse httpResponse) {
         try {
             ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
             Session targetSession = Session.newSession(request, httpResponse);
             writer.writeValue(this.file, prepareTargetSessions(targetSession));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new MocoException(e);
         }
     }
 
-    private ImmutableList<Session> prepareTargetSessions(Session targetSession) {
+    private ImmutableList<Session> prepareTargetSessions(final Session targetSession) {
         if (file.length() == 0) {
             return of(targetSession);
         }
 
-        return ImmutableList.<Session>builder().addAll(toUniqueSessions(targetSession, restoreSessions(this.file))).add(targetSession).build();
+        return ImmutableList.<Session>builder()
+                .addAll(toUniqueSessions(targetSession, restoreSessions(this.file)))
+                .add(targetSession)
+                .build();
     }
 
-    private Iterable<Session> toUniqueSessions(Session targetSession, ImmutableList<Session> sessions) {
+    private Iterable<Session> toUniqueSessions(final Session targetSession, final ImmutableList<Session> sessions) {
         Optional<Session> session = tryFind(sessions, isForRequest(targetSession.getRequest()));
         if (session.isPresent()) {
             return from(sessions).filter(not(isForRequest(targetSession.getRequest())));
@@ -62,7 +67,7 @@ public class DefaultFailoverExecutor implements FailoverExecutor {
         return sessions;
     }
 
-    private ImmutableList<Session> restoreSessions(File file) {
+    private ImmutableList<Session> restoreSessions(final File file) {
         try {
             List<Session> sessions = mapper.readValue(file, factory.constructCollectionType(List.class, Session.class));
             return copyOf(sessions);
@@ -70,12 +75,12 @@ public class DefaultFailoverExecutor implements FailoverExecutor {
             logger.error("exception found", jme);
             return of();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new MocoException(e);
         }
     }
 
     @Override
-    public HttpResponse failover(HttpRequest request) {
+    public HttpResponse failover(final HttpRequest request) {
         ImmutableList<Session> sessions = restoreSessions(this.file);
         final Optional<Session> session = tryFind(sessions, isForRequest(request));
         if (session.isPresent()) {
@@ -83,13 +88,13 @@ public class DefaultFailoverExecutor implements FailoverExecutor {
         }
 
         logger.error("No match request found: {}", request);
-        throw new RuntimeException("no failover response found");
+        throw new MocoException("no failover response found");
     }
 
     private Predicate<Session> isForRequest(final HttpRequest dumpedRequest) {
         return new Predicate<Session>() {
             @Override
-            public boolean apply(Session session) {
+            public boolean apply(final Session session) {
                 HttpRequest request = session.getRequest();
                 return new HttpRequestFailoverMatcher(request).match(dumpedRequest);
             }

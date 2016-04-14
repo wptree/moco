@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.github.dreamhead.moco.parser.model.ProxyContainer;
-import com.github.dreamhead.moco.parser.model.TextContainer;
 
 import java.io.IOException;
 
@@ -14,16 +13,18 @@ import static com.google.common.collect.Iterators.get;
 
 public class ProxyContainerDeserializer extends JsonDeserializer<ProxyContainer> {
     @Override
-    public ProxyContainer deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+    public ProxyContainer deserialize(final JsonParser jp, final DeserializationContext ctxt) throws IOException {
         JsonToken currentToken = jp.getCurrentToken();
         if (currentToken == JsonToken.VALUE_STRING) {
             return builder().withUrl(jp.getText().trim()).build();
-        } else if (currentToken == JsonToken.START_OBJECT) {
+        }
+
+        if (currentToken == JsonToken.START_OBJECT) {
             InternalProxyContainer container = get(jp.readValuesAs(InternalProxyContainer.class), 0);
             return container.toProxyContainer();
         }
 
-        throw ctxt.mappingException(TextContainer.class, currentToken);
+        throw ctxt.mappingException(ProxyContainer.class, currentToken);
     }
 
     private static class InternalProxyContainer {
@@ -35,7 +36,13 @@ public class ProxyContainerDeserializer extends JsonDeserializer<ProxyContainer>
         public String playback;
 
         public ProxyContainer toProxyContainer() {
-            return builder().withUrl(url).withFrom(from).withTo(to).withFailover(failover).withPlayback(playback).build();
+            return builder()
+                    .withUrl(url)
+                    .withFrom(from)
+                    .withTo(to)
+                    .withFailover(failover)
+                    .withPlayback(playback)
+                    .build();
         }
     }
 }

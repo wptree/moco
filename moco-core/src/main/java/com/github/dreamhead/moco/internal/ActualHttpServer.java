@@ -1,31 +1,26 @@
 package com.github.dreamhead.moco.internal;
 
-import com.github.dreamhead.moco.*;
+import com.github.dreamhead.moco.HttpsCertificate;
+import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.MocoMonitor;
+import com.github.dreamhead.moco.RequestMatcher;
+import com.github.dreamhead.moco.dumper.HttpRequestDumper;
+import com.github.dreamhead.moco.dumper.HttpResponseDumper;
 import com.github.dreamhead.moco.monitor.QuietMonitor;
 import com.github.dreamhead.moco.monitor.Slf4jMonitor;
-import com.github.dreamhead.moco.setting.BaseSetting;
+import com.github.dreamhead.moco.setting.HttpSetting;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 
-import java.util.List;
-
-import static com.github.dreamhead.moco.util.Configs.configItem;
-import static com.github.dreamhead.moco.util.Configs.configItems;
+import static com.google.common.base.Optional.absent;
 import static com.google.common.base.Optional.of;
-import static com.google.common.collect.Lists.newArrayList;
 
 public class ActualHttpServer extends HttpConfiguration {
-    private Optional<Integer> port;
-    private final MocoConfig[] configs;
-    private final List<BaseSetting> settings = newArrayList();
-    private RequestMatcher matcher = anyRequest();
-    private final MocoMonitor monitor;
-    protected final Optional<HttpsCertificate> certificate;
+    private final Optional<HttpsCertificate> certificate;
 
-    protected ActualHttpServer(Optional<Integer> port, Optional<HttpsCertificate> certificate, MocoMonitor monitor, MocoConfig... configs) {
-        this.port = port;
-        this.monitor = monitor;
-        this.configs = configs;
+    protected ActualHttpServer(final Optional<Integer> port,
+                               final Optional<HttpsCertificate> certificate,
+                               final MocoMonitor monitor, final MocoConfig... configs) {
+        super(port, monitor, configs);
         this.certificate = certificate;
     }
 
@@ -33,45 +28,17 @@ public class ActualHttpServer extends HttpConfiguration {
         return certificate.isPresent();
     }
 
-    public HttpsCertificate getCertificate() {
-        return certificate.orNull();
+    public Optional<HttpsCertificate> getCertificate() {
+        return certificate;
     }
 
-    public ImmutableList<BaseSetting> getSettings() {
-        return configItems(settings, configs);
-    }
-
-    public BaseSetting getAnySetting() {
-        BaseSetting setting = new BaseSetting(configItem(this.matcher, configs));
-        ResponseHandler configuredHandler = configItem(this.handler, configs);
-        if (configuredHandler != null) {
-            setting.response(configuredHandler);
-        }
-        for (MocoEventTrigger trigger : eventTriggers) {
-            setting.on(trigger);
-        }
-        return setting;
-    }
-
-    public Optional<Integer> getPort() {
-        return port;
-    }
-
-    public MocoMonitor getMonitor() {
-        return monitor;
-    }
-
-    private void addSetting(final BaseSetting setting) {
-        this.settings.add(setting);
-    }
-
-    public HttpServer mergeHttpServer(ActualHttpServer thatServer) {
-        ActualHttpServer newServer = newBaseServer();
+    public ActualHttpServer mergeHttpServer(final ActualHttpServer thatServer) {
+        ActualHttpServer newServer = newBaseServer(newServerCertificate(thatServer.certificate));
         newServer.addSettings(this.getSettings());
         newServer.addSettings(thatServer.getSettings());
 
-        newServer.anySetting(configItem(this.matcher, this.configs), configItem(this.handler, this.configs));
-        newServer.anySetting(configItem(thatServer.matcher, thatServer.configs), configItem(thatServer.handler, thatServer.configs));
+        newServer.anySetting(configuredMatcher(), configured(this.handler));
+        newServer.anySetting(thatServer.configuredMatcher(), thatServer.configured(thatServer.handler));
 
         newServer.addEvents(this.eventTriggers);
         newServer.addEvents(thatServer.eventTriggers);
@@ -79,91 +46,63 @@ public class ActualHttpServer extends HttpConfiguration {
         return newServer;
     }
 
-    private ActualHttpServer newBaseServer() {
-        if (isSecure()) {
-            return createHttpsLogServer(port, certificate.get());
+    private Optional<HttpsCertificate> newServerCertificate(final Optional<HttpsCertificate> certificate) {
+        if (this.isSecure()) {
+            return this.certificate;
         }
 
-        return createLogServer(port);
-    }
-
-    private void addEvents(List<MocoEventTrigger> eventTriggers) {
-        this.eventTriggers.addAll(eventTriggers);
-    }
-
-    private void anySetting(RequestMatcher matcher, ResponseHandler handler) {
-        if (handler != null) {
-            this.response(handler);
-            this.matcher = matcher;
-        }
-    }
-
-    private void addSettings(ImmutableList<BaseSetting> thatSettings) {
-        for (BaseSetting thatSetting : thatSettings) {
-            addSetting(thatSetting);
-        }
-    }
-
-    @Override
-    public int port() {
-        if (port.isPresent()) {
-            return port.get();
+        if (certificate.isPresent()) {
+            return certificate;
         }
 
-        throw new IllegalStateException("unbound port should not be returned");
+        return absent();
     }
 
-    @Override
-    protected Setting onRequestAttached(final RequestMatcher matcher) {
-        BaseSetting baseSetting = new BaseSetting(matcher);
-        addSetting(baseSetting);
-        return baseSetting;
+    private ActualHttpServer newBaseServer(final Optional<HttpsCertificate> certificate) {
+        if (certificate.isPresent()) {
+            return createHttpsLogServer(getPort(), certificate.get());
+        }
+
+        return createLogServer(getPort());
     }
 
-    private static RequestMatcher anyRequest() {
-        return new RequestMatcher() {
-            @Override
-            public boolean match(final HttpRequest request) {
-                return true;
-            }
-
-            @Override
-            @SuppressWarnings("unchecked")
-            public RequestMatcher apply(final MocoConfig config) {
-                if (config.isFor(MocoConfig.URI_ID)) {
-                    return context((String)config.apply(""));
-                }
-
-                return this;
-            }
-        };
-    }
-
-    public static ActualHttpServer createHttpServerWithMonitor(Optional<Integer> port, MocoMonitor monitor, MocoConfig... configs) {
+    public static ActualHttpServer createHttpServerWithMonitor(final Optional<Integer> port,
+                                                               final MocoMonitor monitor,
+                                                               final MocoConfig... configs) {
         return new ActualHttpServer(port, Optional.<HttpsCertificate>absent(), monitor, configs);
     }
 
-    public static ActualHttpServer createLogServer(Optional<Integer> port, MocoConfig... configs) {
-        return createHttpServerWithMonitor(port, new Slf4jMonitor(), configs);
+    public static ActualHttpServer createLogServer(final Optional<Integer> port, final MocoConfig... configs) {
+        return createHttpServerWithMonitor(port,
+                new Slf4jMonitor(new HttpRequestDumper(), new HttpResponseDumper()), configs);
     }
 
-    public static ActualHttpServer createQuietServer(Optional<Integer> port, MocoConfig... configs) {
+    public static ActualHttpServer createQuietServer(final Optional<Integer> port, final MocoConfig... configs) {
         return createHttpServerWithMonitor(port, new QuietMonitor(), configs);
     }
 
-    public static ActualHttpServer createHttpsServerWithMonitor(Optional<Integer> port, HttpsCertificate certificate, MocoMonitor monitor, MocoConfig... configs) {
+    public static ActualHttpServer createHttpsServerWithMonitor(final Optional<Integer> port,
+                                                                final HttpsCertificate certificate,
+                                                                final MocoMonitor monitor,
+                                                                final MocoConfig... configs) {
         return new ActualHttpServer(port, of(certificate), monitor, configs);
     }
 
-    public static ActualHttpServer createHttpsLogServer(Optional<Integer> port, HttpsCertificate certificate, MocoConfig... configs) {
-        return createHttpsServerWithMonitor(port, certificate, new Slf4jMonitor(), configs);
+    public static ActualHttpServer createHttpsLogServer(final Optional<Integer> port,
+                                                        final HttpsCertificate certificate,
+                                                        final MocoConfig... configs) {
+        return createHttpsServerWithMonitor(port, certificate,
+                new Slf4jMonitor(new HttpRequestDumper(), new HttpResponseDumper()), configs);
     }
 
-    public static ActualHttpServer createHttpsQuietServer(Optional<Integer> port, HttpsCertificate certificate, MocoConfig... configs) {
+    public static ActualHttpServer createHttpsQuietServer(final Optional<Integer> port,
+                                                          final HttpsCertificate certificate,
+                                                          final MocoConfig... configs) {
         return ActualHttpServer.createHttpsServerWithMonitor(port, certificate, new QuietMonitor(), configs);
     }
 
-    public void setPort(int port) {
-        this.port = of(port);
+    @Override
+    protected HttpSetting newSetting(final RequestMatcher matcher) {
+        return new HttpSetting(matcher);
     }
 }

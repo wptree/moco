@@ -1,6 +1,6 @@
 package com.github.dreamhead.moco.runner;
 
-import com.github.dreamhead.moco.bootstrap.StartArgs;
+import com.github.dreamhead.moco.bootstrap.arg.StartArgs;
 import com.github.dreamhead.moco.parser.GlobalSettingParser;
 import com.github.dreamhead.moco.parser.model.GlobalSetting;
 import com.google.common.base.Function;
@@ -15,21 +15,20 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 
 import static com.github.dreamhead.moco.runner.JsonRunner.newJsonRunnerWithSetting;
+import static com.github.dreamhead.moco.runner.RunnerSetting.aRunnerSetting;
 import static com.google.common.collect.FluentIterable.from;
 
 public class SettingRunner implements Runner {
-    private static final GlobalSettingParser settingParser = new GlobalSettingParser();
-    private final Optional<Integer> port;
+    private final GlobalSettingParser parser = new GlobalSettingParser();
     private final ImmutableList<GlobalSetting> globalSettings;
     private final Optional<String> env;
     private final StartArgs startArgs;
     private JsonRunner jsonRunner;
     private final FluentIterable<File> files;
 
-    public SettingRunner(InputStream stream, StartArgs args) {
-        this.port = args.getPort();
+    public SettingRunner(final InputStream stream, final StartArgs args) {
         this.env = args.getEnv();
-        this.globalSettings = settingParser.parse(stream);
+        this.globalSettings = parser.parse(stream);
         this.files = from(globalSettings).transform(toFile());
         this.startArgs = args;
     }
@@ -39,31 +38,34 @@ public class SettingRunner implements Runner {
     }
 
     public void run() {
-        jsonRunner = newJsonRunnerWithSetting(from(globalSettings).filter(byEnv(this.env)).transform(toRunnerSetting()), startArgs);
+        jsonRunner = newJsonRunnerWithSetting(from(globalSettings)
+                .filter(byEnv(this.env))
+                .transform(toRunnerSetting()), startArgs);
         jsonRunner.run();
     }
 
     private Predicate<? super GlobalSetting> byEnv(final Optional<String> env) {
-
         return new Predicate<GlobalSetting>() {
             @Override
-            public boolean apply(GlobalSetting globalSetting) {
+            public boolean apply(final GlobalSetting globalSetting) {
                 return !env.isPresent() || env.get().equalsIgnoreCase(globalSetting.getEnv());
 
             }
         };
     }
 
-
     private Function<GlobalSetting, RunnerSetting> toRunnerSetting() {
         return new Function<GlobalSetting, RunnerSetting>() {
             @Override
-            public RunnerSetting apply(GlobalSetting setting) {
+            public RunnerSetting apply(final GlobalSetting setting) {
                 try {
-                    return new RunnerSetting(new FileInputStream(setting.getInclude()),
-                            setting.getContext(),
-                            setting.getFileRoot(),
-                            setting.getResponse());
+                    return aRunnerSetting()
+                            .withStream(new FileInputStream(setting.getInclude()))
+                            .withContext(setting.getContext())
+                            .withFileRoot(setting.getFileRoot())
+                            .withRequest(setting.getRequest())
+                            .withResponse(setting.getResponse())
+                            .build();
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
@@ -78,7 +80,7 @@ public class SettingRunner implements Runner {
     private Function<? super GlobalSetting, File> toFile() {
         return new Function<GlobalSetting, File>() {
             @Override
-            public File apply(GlobalSetting input) {
+            public File apply(final GlobalSetting input) {
                 return new File(input.getInclude());
             }
         };

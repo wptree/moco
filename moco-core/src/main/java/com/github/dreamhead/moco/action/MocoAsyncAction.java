@@ -12,7 +12,7 @@ public class MocoAsyncAction implements MocoEventAction {
     private final LatencyProcedure procedure;
     private final ExecutorService service = Executors.newCachedThreadPool();
 
-    public MocoAsyncAction(MocoEventAction action, LatencyProcedure procedure) {
+    public MocoAsyncAction(final MocoEventAction action, final LatencyProcedure procedure) {
         this.action = action;
         this.procedure = procedure;
     }
@@ -30,9 +30,9 @@ public class MocoAsyncAction implements MocoEventAction {
 
     @Override
     public MocoEventAction apply(final MocoConfig config) {
-        MocoEventAction action = this.action.apply(config);
-        if (this.action != action) {
-            return new MocoAsyncAction(action, procedure);
+        MocoEventAction appliedAction = this.action.apply(config);
+        if (this.action != appliedAction) {
+            return new MocoAsyncAction(appliedAction, procedure);
         }
 
         return this;

@@ -13,7 +13,9 @@ import java.io.File;
 public class MonitorFactory {
     private static Logger logger = LoggerFactory.getLogger(MonitorFactory.class);
 
-    public ShutdownMocoRunnerWatcher createShutdownWatcher(final Runner runner, Optional<Integer> shutdownPort, String shutdownKey) {
+    public ShutdownMocoRunnerWatcher createShutdownWatcher(final Runner runner,
+                                                           final Optional<Integer> shutdownPort,
+                                                           final String shutdownKey) {
         return new ShutdownMocoRunnerWatcher(shutdownPort, shutdownKey, new ShutdownListener() {
             @Override
             public void onShutdown() {
@@ -26,7 +28,9 @@ public class MonitorFactory {
         return new FileMocoRunnerWatcher(configuration, createListener(fileRunner));
     }
 
-    public MocoRunnerWatcher createSettingWatcher(final File settingsFile, final Iterable<File> configurationFiles, final FileRunner fileRunner) {
+    public MocoRunnerWatcher createSettingWatcher(final File settingsFile,
+                                                  final Iterable<File> configurationFiles,
+                                                  final FileRunner fileRunner) {
         ImmutableList<File> files = ImmutableList.<File>builder().add(settingsFile).addAll(configurationFiles).build();
         return new FilesMocoRunnerWatcher(files, createListener(fileRunner));
     }
@@ -34,7 +38,7 @@ public class MonitorFactory {
     private FileAlterationListenerAdaptor createListener(final FileRunner fileRunner) {
         return new FileAlterationListenerAdaptor() {
             @Override
-            public void onFileChange(File file) {
+            public void onFileChange(final File file) {
                 logger.info("{} change detected.", file.getName());
                 try {
                     fileRunner.restart();

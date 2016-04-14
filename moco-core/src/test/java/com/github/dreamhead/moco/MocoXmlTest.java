@@ -6,12 +6,12 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static com.github.dreamhead.moco.Moco.*;
-import static com.github.dreamhead.moco.RemoteTestUtils.root;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
 import static com.github.dreamhead.moco.Runner.running;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-public class MocoXmlTest extends AbstractMocoTest {
+public class MocoXmlTest extends AbstractMocoHttpTest {
     @Test
     public void should_return_content_based_on_xpath() throws Exception {
         server.request(eq(xpath("/request/parameters/id/text()"), "1")).response("foo");
@@ -74,6 +74,18 @@ public class MocoXmlTest extends AbstractMocoTest {
 
     @Test
     public void should_match_xml() throws Exception {
+        server.request(xml("<request><parameters><id>1</id></parameters></request>")).response("foo");
+
+        running(server, new Runnable() {
+            @Override
+            public void run() throws IOException {
+                assertThat(helper.postFile(root(), "foo.xml"), is("foo"));
+            }
+        });
+    }
+
+    @Test
+    public void should_match_xml_with_resource() throws Exception {
         server.request(xml(text("<request><parameters><id>1</id></parameters></request>"))).response("foo");
 
         running(server, new Runnable() {
@@ -86,7 +98,7 @@ public class MocoXmlTest extends AbstractMocoTest {
 
     @Test(expected = IOException.class)
     public void should_throw_exception_for_unknown_content() throws Exception {
-        server.request(xml(text("<request><parameters><id>1</id></parameters></request>"))).response("foo");
+        server.request(xml("<request><parameters><id>1</id></parameters></request>")).response("foo");
 
         running(server, new Runnable() {
             @Override

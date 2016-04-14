@@ -1,29 +1,29 @@
 package com.github.dreamhead.moco.monitor;
 
-import com.github.dreamhead.moco.HttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.Response;
 
 public class LogMonitor extends AbstractMonitor {
-    private LogWriter writer;
-    private LogFormatter formatter;
+    private final LogWriter writer;
+    private final LogFormatter formatter;
 
-    public LogMonitor(LogFormatter formatter, LogWriter writer) {
+    public LogMonitor(final LogFormatter formatter, final LogWriter writer) {
         this.writer = writer;
         this.formatter = formatter;
     }
 
     @Override
-    public void onMessageArrived(final HttpRequest request) {
+    public void onMessageArrived(final Request request) {
         writer.write(formatter.format(request));
     }
 
     @Override
-    public void onException(final Exception e) {
-        writer.write(formatter.format(e));
+    public void onException(final Throwable t) {
+        writer.write(formatter.format(t));
     }
 
     @Override
-    public void onMessageLeave(final FullHttpResponse response) {
+    public void onMessageLeave(final Response response) {
         writer.write(formatter.format(response));
     }
 }

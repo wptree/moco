@@ -21,14 +21,14 @@ import static com.github.dreamhead.moco.HttpProtocolVersion.*;
 import static com.github.dreamhead.moco.Moco.*;
 import static com.github.dreamhead.moco.MocoRequestHit.once;
 import static com.github.dreamhead.moco.MocoRequestHit.requestHit;
-import static com.github.dreamhead.moco.RemoteTestUtils.*;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.*;
 import static com.github.dreamhead.moco.Runner.running;
-import static com.google.common.collect.ImmutableMap.of;
+import static com.google.common.collect.ImmutableMultimap.of;
 import static java.lang.String.format;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
-public class MocoProxyTest extends AbstractMocoTest {
+public class MocoProxyTest extends AbstractMocoHttpTest {
     @Rule
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -198,6 +198,7 @@ public class MocoProxyTest extends AbstractMocoTest {
 
     @Test
     public void should_failover_with_same_response_once() throws Exception {
+        server = httpServer(port(), log());
         server.post(and(by(uri("/target")), by("proxy"))).response("0XCAFEBABE");
         final File tempFile = tempFolder.newFile();
         server.request(by(uri("/proxy"))).response(proxy(remoteUrl("/target"), failover(tempFile.getAbsolutePath())));
@@ -264,17 +265,17 @@ public class MocoProxyTest extends AbstractMocoTest {
         });
     }
 
-    @Test
-    public void should_be_able_to_connect_to_external_website_successfully() throws Exception {
-        server.response(proxy("http://www.baidu.com/"));
-
-        running(server, new Runnable() {
-            @Override
-            public void run() throws IOException {
-                assertThat(helper.getForStatus(root()), is(200));
-            }
-        });
-    }
+//    @Test
+//    public void should_be_able_to_connect_to_external_website_successfully() throws Exception {
+//        server.response(proxy("http://www.baidu.com/"));
+//
+//        running(server, new Runnable() {
+//            @Override
+//            public void run() throws IOException {
+//                assertThat(helper.getForStatus(root()), is(200));
+//            }
+//        });
+//    }
 
     @Test
     public void should_proxy_a_batch_of_urls() throws Exception {
@@ -333,7 +334,7 @@ public class MocoProxyTest extends AbstractMocoTest {
 
     @Test
     public void should_batch_proxy_from_server_with_context_server() throws Exception {
-        server = httpserver(port(), context("/proxy"));
+        server = httpServer(port(), context("/proxy"));
         server.get(by(uri("/target/1"))).response("target_1");
         server.get(by(uri("/target/2"))).response("target_2");
         server.proxy(from("/proxy").to(remoteUrl("/proxy/target")));
@@ -376,7 +377,7 @@ public class MocoProxyTest extends AbstractMocoTest {
     @Test
     public void should_proxy_with_playback_to_access_remote_only_once() throws Exception {
         RequestHit hit = requestHit();
-        server = httpserver(port(), hit);
+        server = httpServer(port(), hit);
         server.request(by(uri("/target"))).response("proxy");
         final File file = tempFolder.newFile();
         server.request(by(uri("/proxy_playback"))).response(proxy(remoteUrl("/target"), playback(file.getAbsolutePath())));
@@ -403,6 +404,21 @@ public class MocoProxyTest extends AbstractMocoTest {
                 HttpResponse response = Request.Get(remoteUrl("/proxy")).execute().returnResponse();
                 assertThat(response.getFirstHeader("Date"), nullValue());
                 assertThat(response.getFirstHeader("Server"), nullValue());
+            }
+        });
+    }
+
+    @Test
+    public void should_work_well_for_chunk_response() throws Exception {
+        final File file = tempFolder.newFile();
+        HttpServer server = httpServer(12306, context("/"));
+        server.get(match(uri("/repos/.*")))
+                .response(proxy(from("/repos").to("https://api.github.com/repos"), playback(file.getAbsolutePath())));
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                String result = helper.get("http://localhost:12306/repos/HipByte/RubyMotion/contributors");
+                assertThat(result.isEmpty(), is(false));
             }
         });
     }

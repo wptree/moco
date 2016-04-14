@@ -1,13 +1,16 @@
 package com.github.dreamhead.moco.parser.model;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.github.dreamhead.moco.handler.failover.Failover;
 import com.github.dreamhead.moco.handler.proxy.ProxyConfig;
-import com.google.common.base.Objects;
+import com.github.dreamhead.moco.parser.deserializer.ProxyContainerDeserializer;
+import com.google.common.base.MoreObjects;
 
 import static com.github.dreamhead.moco.Moco.failover;
-import static com.github.dreamhead.moco.Moco.from;
 import static com.github.dreamhead.moco.Moco.playback;
+import static com.github.dreamhead.moco.Moco.from;
 
+@JsonDeserialize(using = ProxyContainerDeserializer.class)
 public class ProxyContainer {
     private String url;
     private String from;
@@ -26,9 +29,13 @@ public class ProxyContainer {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(ProxyContainer.class)
+        return MoreObjects.toStringHelper(ProxyContainer.class)
+                .omitNullValues()
                 .add("url", this.url)
+                .add("from", this.from)
+                .add("to", this.to)
                 .add("failover", this.failover)
+                .add("playback", this.playback)
                 .toString();
     }
 
@@ -64,27 +71,27 @@ public class ProxyContainer {
         private String from;
         private String to;
 
-        public Builder withUrl(String url) {
+        public Builder withUrl(final String url) {
             this.url = url;
             return this;
         }
 
-        public Builder withFrom(String from) {
+        public Builder withFrom(final String from) {
             this.from = from;
             return this;
         }
 
-        public Builder withTo(String to) {
+        public Builder withTo(final String to) {
             this.to = to;
             return this;
         }
 
-        public Builder withFailover(String failover) {
+        public Builder withFailover(final String failover) {
             this.failover = failover;
             return this;
         }
 
-        public Builder withPlayback(String playback) {
+        public Builder withPlayback(final String playback) {
             this.playback = playback;
             return this;
         }
@@ -97,7 +104,6 @@ public class ProxyContainer {
             if (this.url == null && (this.from == null || this.to == null)) {
                 throw new IllegalArgumentException("Batch proxy needs both 'from' and 'to'");
             }
-
 
             ProxyContainer container = new ProxyContainer();
             container.url = url;

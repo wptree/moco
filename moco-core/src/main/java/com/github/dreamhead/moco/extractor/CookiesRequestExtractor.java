@@ -1,12 +1,12 @@
 package com.github.dreamhead.moco.extractor;
 
 import com.github.dreamhead.moco.HttpRequest;
+import com.github.dreamhead.moco.HttpRequestExtractor;
 import com.github.dreamhead.moco.RequestExtractor;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.CookieDecoder;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 
 import java.util.Map;
 import java.util.Set;
@@ -15,26 +15,37 @@ import static com.google.common.base.Optional.absent;
 import static com.google.common.base.Optional.of;
 import static com.google.common.collect.ImmutableMap.copyOf;
 import static com.google.common.collect.Maps.newHashMap;
+import static com.google.common.collect.Sets.newHashSet;
+import static com.google.common.net.HttpHeaders.COOKIE;
 
-public class CookiesRequestExtractor implements RequestExtractor<ImmutableMap<String, String>> {
-    private final RequestExtractor<String> extractor = new HeaderRequestExtractor(HttpHeaders.Names.COOKIE);
+public class CookiesRequestExtractor extends HttpRequestExtractor<ImmutableMap<String, String>> {
+    private final RequestExtractor<String[]> extractor = new HeaderRequestExtractor(COOKIE);
 
-    public Optional<ImmutableMap<String, String>> extract(final HttpRequest request) {
-        Optional<String> cookieString = extractor.extract(request);
+    @Override
+    protected Optional<ImmutableMap<String, String>> doExtract(final HttpRequest request) {
+        Optional<String[]> cookieString = extractor.extract(request);
         if (!cookieString.isPresent()) {
-            return absent() ;
+            return absent();
         }
 
-        return of(doExtract(cookieString.get()));
+        return of(doExtractCookies(cookieString.get()));
     }
 
-    private static ImmutableMap<String, String> doExtract(String cookieString) {
-        Set<Cookie> cookies = CookieDecoder.decode(cookieString);
+    private static ImmutableMap<String, String> doExtractCookies(final String[] cookieString) {
+        Set<Cookie> cookies = toCookies(cookieString);
         Map<String, String> target = newHashMap();
         for (Cookie cookie : cookies) {
-            target.put(cookie.getName(), cookie.getValue());
+            target.put(cookie.name(), cookie.value());
         }
 
         return copyOf(target);
+    }
+
+    private static Set<Cookie> toCookies(final String[] headers) {
+        Set<Cookie> cookies = newHashSet();
+        for (String header : headers) {
+            cookies.addAll(ServerCookieDecoder.STRICT.decode(header));
+        }
+        return cookies;
     }
 }

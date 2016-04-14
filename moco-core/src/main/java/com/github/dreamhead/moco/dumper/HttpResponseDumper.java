@@ -1,24 +1,28 @@
 package com.github.dreamhead.moco.dumper;
 
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpResponse;
+import com.github.dreamhead.moco.HttpResponse;
+import com.github.dreamhead.moco.Response;
+import com.google.common.base.Joiner;
 import io.netty.util.internal.StringUtil;
 
-public class HttpResponseDumper extends HttpMessageBaseDumper<FullHttpResponse> {
+import static com.github.dreamhead.moco.dumper.HttpDumpers.asContent;
+
+public class HttpResponseDumper implements Dumper<Response> {
+    private final Joiner.MapJoiner headerJoiner = Joiner.on(StringUtil.NEWLINE).withKeyValueSeparator(": ");
+
     @Override
-    public String dump(FullHttpResponse response) {
+    public String dump(final Response response) {
+        HttpResponse httpResponse = (HttpResponse) response;
         StringBuilder buf = new StringBuilder();
-        appendResponseProtocolLine(response, buf);
-        buf.append(StringUtil.NEWLINE);
-        headerJoiner.appendTo(buf, response.headers());
-        appendContent(response, buf);
+        buf.append(responseProtocolLine(httpResponse))
+                .append(StringUtil.NEWLINE)
+                .append(headerJoiner.join(httpResponse.getHeaders()))
+                .append(asContent(httpResponse));
 
         return buf.toString();
     }
 
-    private void appendResponseProtocolLine(HttpResponse response, StringBuilder buf) {
-        buf.append(response.getProtocolVersion().text());
-        buf.append(' ');
-        buf.append(response.getStatus().toString());
+    private String responseProtocolLine(final HttpResponse httpResponse) {
+        return httpResponse.getVersion().text() + ' ' + httpResponse.getStatus();
     }
 }

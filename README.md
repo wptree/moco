@@ -6,15 +6,16 @@
 
 # [Moco](https://github.com/dreamhead/moco) [![Build Status](https://travis-ci.org/dreamhead/moco.png?branch=master)](https://travis-ci.org/dreamhead/moco)
 
-Moco is an easy setup stub framework, mainly focusing on testing and integration, inspired by Mock framework, e.g. [Mockito](http://code.google.com/p/mockito/), and [Playframework](http://www.playframework.com/)
+Moco is an easy setup stub framework.
 
 ## Latest Release
-* __0.9.1__
+* __0.10.2__
 
-More details in [Release Notes](https://github.com/dreamhead/moco/blob/master/moco-doc/ReleaseNotes.md)
+More details in [Release Notes](moco-doc/ReleaseNotes.md)
 
-## User Survey
-[Let me know](https://jinshuju.net/f/Agawf9) if you are using Moco.
+## User Voice
+* [Let me know](https://jinshuju.net/f/Agawf9) if you are using Moco.
+* Join Moco [mailing list](https://groups.google.com/forum/#!forum/moco-stub) to discuss.
 
 ## Why
 Integration, especially based on HTTP protocol, e.g. web service, REST etc, is wildly used in most of our development.
@@ -22,7 +23,7 @@ Integration, especially based on HTTP protocol, e.g. web service, REST etc, is w
 In the old days, we just deployed another WAR to an application server, e.g. Jetty or Tomcat etc. As we all know, it's so boring to develop a WAR and deploy it to any application server, even if we use an embeded server. And the WAR needs to be reassembled even if we just want to change a little bit.
 
 ## Quick Start
-* Download [Standalone Moco Runner](http://repo1.maven.org/maven2/com/github/dreamhead/moco-runner/0.9.1/moco-runner-0.9.1-standalone.jar)
+* Download [Standalone Moco Runner](https://repo1.maven.org/maven2/com/github/dreamhead/moco-runner/0.10.2/moco-runner-0.10.2-standalone.jar)
 * Write your own configuration file to describe your Moco server configuration as follow:
 ```json
 [
@@ -34,17 +35,18 @@ In the old days, we just deployed another WAR to an application server, e.g. Jet
   }
 ]
 ```
+(foo.json)
 
-* Run Moco server
+* Run Moco HTTP server with the configuration file.
 ```shell
-java -jar moco-runner-<version>-standalone.jar start -p 12306 -c foo.json
+java -jar moco-runner-<version>-standalone.jar http -p 12306 -c foo.json
 ```
 
 * Now, open your favorite browser to visit http://localhost:12306 and you will see "Hello, Moco".
 
 ## Documents
 * More [Usages](moco-doc/usage.md)
-* Detailed [APIs](moco-doc/apis.md)
+* Detailed [HTTP APIs](moco-doc/apis.md) or [Socket APIs](moco-doc/socket-apis.md)
 * [Global Settings](moco-doc/global-settings.md) for multiple configuration files.
 * [Command Line Usages](moco-doc/cmd.md)
 
@@ -76,8 +78,12 @@ git clone git@github.com:dreamhead/moco.git
 Check out what you can help [here](moco-doc/plan.md) if you do not have any existing idea.
 
 ## Copyright and license
-Copyright 2014 ZHENG Ye
+Copyright 2012-2015 ZHENG Ye
 
 Licensed under MIT License (the "License"); You may obtain a copy of the License in the LICENSE file, or at:
 
 https://raw.github.com/dreamhead/moco/master/MIT-LICENSE.txt
+
+## Powered By
+
+<img src="moco-doc/logo_intellij_idea.png?raw=true">

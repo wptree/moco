@@ -1,16 +1,15 @@
 package com.github.dreamhead.moco.matcher;
 
-import com.github.dreamhead.moco.HttpRequest;
-import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.Request;
 import com.github.dreamhead.moco.RequestMatcher;
 
 public class OrRequestMatcher extends CompositeRequestMatcher {
-    public OrRequestMatcher(Iterable<RequestMatcher> matchers) {
+    public OrRequestMatcher(final Iterable<RequestMatcher> matchers) {
         super(matchers);
     }
 
     @Override
-    public boolean match(final HttpRequest request) {
+    protected boolean doMatch(final Request request, final Iterable<RequestMatcher> matchers) {
         for (RequestMatcher matcher : matchers) {
             if (matcher.match(request)) {
                 return true;
@@ -21,12 +20,7 @@ public class OrRequestMatcher extends CompositeRequestMatcher {
     }
 
     @Override
-    public RequestMatcher apply(final MocoConfig config) {
-        Iterable<RequestMatcher> appliedMatchers = applyToMatchers(config);
-        if (appliedMatchers == this.matchers) {
-            return this;
-        }
-
-        return new OrRequestMatcher(applyToMatchers(config));
+    protected RequestMatcher newMatcher(final Iterable<RequestMatcher> matchers) {
+        return new OrRequestMatcher(matchers);
     }
 }

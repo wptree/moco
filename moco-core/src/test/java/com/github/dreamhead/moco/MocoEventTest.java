@@ -6,14 +6,16 @@ import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import java.util.concurrent.TimeUnit;
+
 import static com.github.dreamhead.moco.Moco.*;
-import static com.github.dreamhead.moco.RemoteTestUtils.*;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.*;
 import static com.github.dreamhead.moco.Runner.running;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.*;
 
-public class MocoEventTest extends AbstractMocoTest {
+public class MocoEventTest extends AbstractMocoHttpTest {
     @Test
     public void should_fire_event_on_complete() throws Exception {
         MocoEventAction action = mock(MocoEventAction.class);
@@ -119,7 +121,7 @@ public class MocoEventTest extends AbstractMocoTest {
             public void run() throws Exception {
                 assertThat(helper.get(remoteUrl("/event")), is("event"));
                 verify(handler, never()).writeToResponse(Matchers.<SessionContext>anyObject());
-                Idles.idle(2000);
+                Idles.idle(2, TimeUnit.SECONDS);
             }
         });
 
@@ -127,17 +129,17 @@ public class MocoEventTest extends AbstractMocoTest {
     }
 
     @Test
-    public void should_send_post_request_to_target_on_complete_asyc_after_awhile() throws Exception {
+    public void should_send_post_request_to_target_on_complete_async_after_awhile() throws Exception {
         final ResponseHandler handler = mock(ResponseHandler.class);
         server.request(by(uri("/target")), by("content")).response(handler);
-        server.request(by(uri("/event"))).response("event").on(complete(async(post(remoteUrl("/target"), text("content")), latency(1000))));
+        server.request(by(uri("/event"))).response("event").on(complete(async(post(remoteUrl("/target"), text("content")), latency(1, TimeUnit.SECONDS))));
 
         running(server, new Runnable() {
             @Override
             public void run() throws Exception {
                 assertThat(helper.get(remoteUrl("/event")), is("event"));
                 verify(handler, never()).writeToResponse(Matchers.<SessionContext>anyObject());
-                Idles.idle(2000);
+                Idles.idle(2, TimeUnit.SECONDS);
             }
         });
 
@@ -148,7 +150,7 @@ public class MocoEventTest extends AbstractMocoTest {
     public void should_fire_event_for_context_configuration() throws Exception {
         MocoEventAction action = mock(MocoEventAction.class);
         when(action.apply(Matchers.<MocoConfig>anyObject())).thenReturn(action);
-        server = httpserver(port(), context("/context"));
+        server = httpServer(port(), context("/context"));
         server.get(by(uri("/foo"))).response("foo").on(complete(action));
 
         running(server, new Runnable() {
@@ -166,7 +168,7 @@ public class MocoEventTest extends AbstractMocoTest {
         ResponseHandler handler = mock(ResponseHandler.class);
         when(handler.apply(Matchers.<MocoConfig>anyObject())).thenReturn(handler);
 
-        server = httpserver(port(), fileRoot("src/test/resources"));
+        server = httpServer(port(), fileRoot("src/test/resources"));
         server.request(by(uri("/target")), by(file("foo.request"))).response(handler);
         server.request(by(uri("/event"))).response("event").on(complete(post(remoteUrl("/target"), file("foo.request"))));
 

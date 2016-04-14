@@ -1,39 +1,39 @@
 package com.github.dreamhead.moco.setting;
 
-import com.github.dreamhead.moco.*;
+
+import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.MocoEvent;
+import com.github.dreamhead.moco.MocoEventTrigger;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.RequestMatcher;
+import com.github.dreamhead.moco.ResponseSetting;
+import com.github.dreamhead.moco.internal.BaseResponseSettingConfiguration;
 import com.github.dreamhead.moco.internal.SessionContext;
-import com.github.dreamhead.moco.matcher.AndRequestMatcher;
 
 import static com.github.dreamhead.moco.util.Configs.configItem;
 import static com.github.dreamhead.moco.util.Configs.configItems;
-import static com.google.common.collect.ImmutableList.of;
 
-public class BaseSetting extends Setting implements ConfigApplier<BaseSetting> {
-    public BaseSetting(RequestMatcher matcher) {
-        super(matcher);
-    }
+public abstract class BaseSetting<T extends ResponseSetting<T>>
+        extends BaseResponseSettingConfiguration<T> implements Setting<T> {
+    private final RequestMatcher matcher;
 
-    public boolean match(HttpRequest request) {
-        return this.matcher.match(request) && this.handler != null;
-    }
+    protected abstract BaseSetting<T> createSetting(final RequestMatcher matcher);
 
-    public void writeToResponse(SessionContext context) {
-        this.handler.writeToResponse(context);
-        this.fireCompleteEvent();
+    protected abstract RequestMatcher configMatcher(final RequestMatcher matcher, final MocoConfig config);
+
+    protected BaseSetting(final RequestMatcher matcher) {
+        this.matcher = matcher;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public BaseSetting apply(final MocoConfig config) {
-        RequestMatcher appliedMatcher = configItem(this.matcher, config);
-        if (config.isFor("uri") && this.matcher == appliedMatcher) {
-            appliedMatcher = new AndRequestMatcher(of(appliedMatcher, context((String)config.apply(""))));
-        }
+    public boolean match(final Request request) {
+        return this.matcher.match(request) && this.handler != null;
+    }
 
-        BaseSetting setting = new BaseSetting(appliedMatcher);
-        setting.handler = configItem(this.handler, config);
-        setting.eventTriggers = configItems(eventTriggers, config);
-        return setting;
+    @Override
+    public void writeToResponse(final SessionContext context) {
+        this.handler.writeToResponse(context);
+        this.fireCompleteEvent();
     }
 
     public void fireCompleteEvent() {
@@ -42,5 +42,13 @@ public class BaseSetting extends Setting implements ConfigApplier<BaseSetting> {
                 eventTrigger.fireEvent();
             }
         }
+    }
+
+    @Override
+    public Setting<T> apply(final MocoConfig config) {
+        BaseSetting<T> setting = createSetting(configMatcher(this.matcher, config));
+        setting.handler = configItem(this.handler, config);
+        setting.eventTriggers = configItems(eventTriggers, config);
+        return setting;
     }
 }

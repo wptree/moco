@@ -10,9 +10,9 @@ import java.io.IOException;
 
 import static com.github.dreamhead.moco.Moco.*;
 import static com.github.dreamhead.moco.MocoMount.to;
-import static com.github.dreamhead.moco.RemoteTestUtils.port;
-import static com.github.dreamhead.moco.RemoteTestUtils.remoteUrl;
-import static com.github.dreamhead.moco.RemoteTestUtils.root;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.port;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.remoteUrl;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
 import static com.github.dreamhead.moco.Runner.running;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -24,7 +24,7 @@ public class MocoFileRootTest {
     @Before
     public void setup() {
         helper = new MocoTestHelper();
-        server = httpserver(port(), fileRoot("src/test/resources"));
+        server = httpServer(port(), fileRoot("src/test/resources"));
     }
 
     @Test
@@ -41,6 +41,7 @@ public class MocoFileRootTest {
 
     @Test
     public void should_return_header_from_file_root() throws Exception {
+        server = httpServer(port(), log(), fileRoot("src/test/resources"));
         server.response(header("foo", file("foo.response")));
 
         running(server, new Runnable() {

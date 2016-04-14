@@ -1,33 +1,52 @@
 package com.github.dreamhead.moco.handler;
 
 import com.github.dreamhead.moco.HttpRequest;
+import com.github.dreamhead.moco.MutableHttpResponse;
+import com.github.dreamhead.moco.MutableResponse;
+import com.github.dreamhead.moco.Request;
+import com.github.dreamhead.moco.Response;
 import com.github.dreamhead.moco.internal.SessionContext;
+import com.github.dreamhead.moco.model.MessageContent;
 import com.google.common.net.HttpHeaders;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.FullHttpResponse;
-
-import static io.netty.handler.codec.http.HttpHeaders.addHeader;
-import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
+import com.google.common.net.MediaType;
 
 public abstract class AbstractContentResponseHandler extends AbstractResponseHandler {
     private final HeaderDetector detector = new HeaderDetector();
 
-    protected abstract void writeContentResponse(final HttpRequest request, ByteBuf buffer);
+    protected abstract MessageContent responseContent(final Request request);
+    protected abstract MediaType getContentType(final HttpRequest request);
 
     @Override
     public void writeToResponse(final SessionContext context) {
-        FullHttpResponse response = context.getResponse();
-        ByteBuf buffer = Unpooled.buffer();
-        writeContentResponse(context.getRequest(), buffer);
-        response.content().writeBytes(buffer);
-        setContentLength(response, response.content().writerIndex());
-        if (!detector.hasContentType(response)) {
-            addHeader(response, HttpHeaders.CONTENT_TYPE, getContentType(context.getRequest()));
+        Request request = context.getRequest();
+        Response response = context.getResponse();
+
+        if (HttpRequest.class.isInstance(request) && MutableHttpResponse.class.isInstance(response)) {
+            HttpRequest httpRequest = HttpRequest.class.cast(request);
+            MutableHttpResponse httpResponse = MutableHttpResponse.class.cast(response);
+            doWriteToResponse(httpRequest, httpResponse);
+            return;
+        }
+
+        MutableResponse mutableResponse = MutableResponse.class.cast(response);
+        mutableResponse.setContent(requireResponseContent(request));
+    }
+
+    private void doWriteToResponse(final HttpRequest httpRequest, final MutableHttpResponse httpResponse) {
+        MessageContent content = requireResponseContent(httpRequest);
+        httpResponse.setContent(content);
+        httpResponse.addHeader(HttpHeaders.CONTENT_LENGTH, content.getContent().length);
+
+        if (!detector.hasContentType(httpResponse)) {
+            httpResponse.addHeader(HttpHeaders.CONTENT_TYPE, getContentType(httpRequest));
         }
     }
 
-    protected String getContentType(final HttpRequest request) {
-        return "text/html; charset=UTF-8";
+    private MessageContent requireResponseContent(final Request request) {
+        MessageContent content = responseContent(request);
+        if (content == null) {
+            throw new IllegalStateException("Message content is expected. Please make sure responseContent method has been implemented correctly");
+        }
+        return content;
     }
 }

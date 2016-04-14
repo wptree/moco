@@ -1,7 +1,24 @@
 # Usage
+
 You have several ways to use Moco. One is API, which you can use in your unit test. The other is that run Moco as standalone. Currently, you put all your configuration in JSON file.
 
 On the other hand, Moco has several different ways to integrate with some tools: Maven plugin, Gradle plugin and shell support.
+
+**Table of Contents**
+
+* [API](#api)
+  * [dependency](#dependency)
+  * [API example](#api-example)
+    * [Runner API](#runner-api)
+* [Standalone](#standalone)
+* [JSON configuration in Java API](#json-configuration-in-java-api)
+* [HTTPS](#https)
+* [Socket](#socket)
+* [JUnit Integration](#junit-integration)
+* [Maven Plugin](#maven-plugin)
+* [Gradle Plugin](#gradle-plugin)
+* [Shell](#shell)
+* [Scala](#scala)
 
 ## API
 
@@ -13,7 +30,7 @@ Moco has been published on Maven repository, so you can refer to it directly in 
 <dependency>
   <groupId>com.github.dreamhead</groupId>
   <artifactId>moco-core</artifactId>
-  <version>0.9.1</version>
+  <version>0.10.2</version>
 </dependency>
 ```
 
@@ -26,7 +43,7 @@ repositories {
 
 dependencies {
   testCompile(
-    "com.github.dreamhead:moco-core:0.9.1",
+    "com.github.dreamhead:moco-core:0.10.2",
   )
 }
 ```
@@ -50,7 +67,7 @@ import static org.junit.Assert.assertThat;
 
 @Test
 public void should_response_as_expected() throws Exception {
-    HttpServer server = httpserver(12306);
+    HttpServer server = httpServer(12306);
     server.response("foo");
 
     running(server, new Runnable() {
@@ -78,7 +95,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static com.github.dreamhead.moco.Moco.httpserver;
+import static com.github.dreamhead.moco.Moco.httpServer;
 import static com.github.dreamhead.moco.Runner.runner;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -88,11 +105,10 @@ public class MocoRunnerTest {
 
     @Before
     public void setup() {
-        HttpServer server = httpserver(12306);
+        HttpServer server = httpServer(12306);
         server.response("foo");
         runner = runner(server);
         runner.start();
-        helper = new MocoTestHelper();
     }
 
     @After
@@ -111,7 +127,7 @@ public class MocoRunnerTest {
 ## Standalone
 
 Moco can be used as standalone to run with configuration and you can download standalone directly:
-[Standalone Moco Runner](http://repo1.maven.org/maven2/com/github/dreamhead/moco-runner/0.9.1/moco-runner-0.9.1-standalone.jar)
+[Standalone Moco Runner](https://repo1.maven.org/maven2/com/github/dreamhead/moco-runner/0.10.2/moco-runner-0.10.2-standalone.jar)
 
 First of all, a JSON configuration file needs to be provided to start Moco.
 
@@ -125,14 +141,46 @@ First of all, a JSON configuration file needs to be provided to start Moco.
   }
 ]
 ```
+(foo.json)
 
 It's time to run Moco standalone server:
 
 ```shell
-java -jar moco-runner-<version>-standalone.jar start -p 12306 -c foo.json
+java -jar moco-runner-<version>-standalone.jar http -p 12306 -c foo.json
 ```
 
 Now, open your browser and input "http://localhost:12306". You will see "foo". That's it.
+
+## JSON configuration in Java API
+
+**@Since 0.10.0**
+
+If you have setup your server with JSON configuration, you can also your configuration from Java API.
+
+```java
+import static com.github.dreamhead.moco.Moco.file;
+import static com.github.dreamhead.moco.Moco.pathResource;
+import static com.github.dreamhead.moco.MocoJsonRunner.jsonHttpServer;
+import static com.github.dreamhead.moco.Runner.running;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.port;
+import static com.github.dreamhead.moco.helper.RemoteTestUtils.root;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
+public class MocoJsonHttpRunnerTest extends AbstractMocoStandaloneTest {
+    @Test
+    public void should_return_expected_response() throws Exception {
+        final HttpServer server = jsonHttpServer(12306, file("foo.json"));
+        running(server, new Runnable() {
+            @Override
+            public void run() throws Exception {
+                Content content = Request.Get("http://localhost:12306").execute().returnContent();
+                assertThat(content.asString(), is("foo"));
+            }
+        });
+    }
+}
+```
 
 ## HTTPS
 
@@ -147,8 +195,32 @@ final HttpsServer server = httpsServer(certificate, hit);
 If you want to use HTTPS for standalone server. certificate information could be provided as CLI arguments.
 
 ```shell
-java -jar moco-runner-<version>-standalone.jar start -p 12306 -c foo.json --https /path/to/cert.jks --cert mocohttps --keystore mocohttps
+java -jar moco-runner-<version>-standalone.jar https -p 12306 -c foo.json --https /path/to/cert.jks --cert mocohttps --keystore mocohttps
 ```
+
+## Socket
+
+Socket is a common integration channel. There is only content available in socket.
+
+```java
+final SocketServer server = socketServer(12306);
+```
+
+You can also use socket in standalone server.
+
+```shell
+java -jar moco-runner-<version>-standalone.jar socket -p 12306 -c foo.json
+```
+
+More socket APIs can be found [here](/moco-doc/socket-apis.md).
+
+## JUnit Integration
+
+**@Since will be at next release**
+
+Moco provides JUnit integration to simplify the use of Moco in JUnit.
+ 
+More details can be found in [here](/moco-doc/junit.md).
 
 ## Maven Plugin
 
@@ -172,8 +244,9 @@ If you are using Mac or Linux, you may try the following approach:
 * Set it to be executable. (chmod 755 ~/bin/moco)
 
 Now, you can try
+
 ```shell
-moco start -p 12306 -c foo.json
+moco http -p 12306 -c foo.json
 ```
 
 It will download the latest moco automatically if you don't have locally.

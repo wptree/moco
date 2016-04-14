@@ -1,6 +1,6 @@
 package com.github.dreamhead.moco.resource;
 
-public class IdFactory {
+public final class IdFactory {
     public static Identifiable id(final String id) {
         return new Identifiable() {
             @Override
@@ -10,5 +10,6 @@ public class IdFactory {
         };
     }
 
-    private IdFactory() {}
+    private IdFactory() {
+    }
 }

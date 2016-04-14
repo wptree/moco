@@ -1,20 +1,22 @@
 package com.github.dreamhead.moco.bootstrap;
 
+import com.github.dreamhead.moco.HttpsCertificate;
 import com.github.dreamhead.moco.Moco;
-import com.github.dreamhead.moco.internal.HttpsCertificate;
+
+import static com.github.dreamhead.moco.HttpsCertificate.certificate;
 
 public class HttpsArg {
-    private String filename;
-    private String keystore;
-    private String cert;
+    private final String filename;
+    private final String keystore;
+    private final String cert;
 
-    public HttpsArg(String filename, String keystore, String cert) {
+    public HttpsArg(final String filename, final String keystore, final String cert) {
         this.filename = filename;
         this.keystore = keystore;
         this.cert = cert;
     }
 
     public HttpsCertificate getCertificate() {
-        return HttpsCertificate.certificate(Moco.file(filename), keystore, cert);
+        return certificate(Moco.file(filename), keystore, cert);
     }
 }

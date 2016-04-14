@@ -1,10 +1,10 @@
 package com.github.dreamhead.moco.matcher;
 
-import com.github.dreamhead.moco.HttpRequest;
 import com.github.dreamhead.moco.MocoConfig;
+import com.github.dreamhead.moco.Request;
 import com.github.dreamhead.moco.RequestMatcher;
 
-public class NotRequestMatcher implements RequestMatcher {
+public class NotRequestMatcher extends AbstractRequestMatcher {
     private final RequestMatcher matcher;
 
     public NotRequestMatcher(final RequestMatcher matcher) {
@@ -12,12 +12,13 @@ public class NotRequestMatcher implements RequestMatcher {
     }
 
     @Override
-    public boolean match(final HttpRequest request) {
+    public boolean match(final Request request) {
         return !matcher.match(request);
     }
 
     @Override
-    public RequestMatcher apply(final MocoConfig config) {
+    @SuppressWarnings("unchecked")
+    public RequestMatcher doApply(final MocoConfig config) {
         RequestMatcher appliedMatcher = matcher.apply(config);
         if (appliedMatcher == this.matcher) {
             return this;

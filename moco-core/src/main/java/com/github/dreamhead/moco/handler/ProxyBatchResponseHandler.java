@@ -19,7 +19,7 @@ public class ProxyBatchResponseHandler extends AbstractProxyResponseHandler {
     }
 
     @Override
-    protected Optional<String> remoteUrl(String uri) {
+    protected Optional<String> remoteUrl(final String uri) {
         if (!proxyConfig.canAccessedBy(uri)) {
             return absent();
         }
@@ -31,8 +31,8 @@ public class ProxyBatchResponseHandler extends AbstractProxyResponseHandler {
     @SuppressWarnings("unchecked")
     public ResponseHandler apply(final MocoConfig config) {
         if (config.isFor(MocoConfig.URI_ID)) {
-            String newLocalBase = (String)config.apply(proxyConfig.localBase());
-            return new ProxyBatchResponseHandler(from(newLocalBase).to(proxyConfig.remoteBase()), failover);
+            String newLocalBase = (String) config.apply(proxyConfig.localBase());
+            return new ProxyBatchResponseHandler(from(newLocalBase).to(proxyConfig.remoteBase()), failover());
         }
 
         return this;

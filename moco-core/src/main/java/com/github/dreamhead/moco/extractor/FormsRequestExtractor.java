@@ -1,7 +1,8 @@
 package com.github.dreamhead.moco.extractor;
 
 import com.github.dreamhead.moco.HttpRequest;
-import com.github.dreamhead.moco.RequestExtractor;
+import com.github.dreamhead.moco.HttpRequestExtractor;
+import com.github.dreamhead.moco.MocoException;
 import com.github.dreamhead.moco.model.DefaultHttpRequest;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -18,17 +19,17 @@ import static com.google.common.base.Optional.of;
 import static com.google.common.collect.ImmutableMap.copyOf;
 import static com.google.common.collect.Maps.newHashMap;
 
-public class FormsRequestExtractor implements RequestExtractor<ImmutableMap<String, String>> {
-    public Optional<ImmutableMap<String, String>> extract(final HttpRequest request) {
-
+public class FormsRequestExtractor extends HttpRequestExtractor<ImmutableMap<String, String>> {
+    @Override
+    protected Optional<ImmutableMap<String, String>> doExtract(final HttpRequest request) {
         HttpPostRequestDecoder decoder = null;
         try {
-            decoder = new HttpPostRequestDecoder(((DefaultHttpRequest)request).toFullHttpRequest());
+            decoder = new HttpPostRequestDecoder(((DefaultHttpRequest) request).toFullHttpRequest());
             return of(doExtractForms(decoder));
         } catch (HttpPostRequestDecoder.IncompatibleDataDecoderException idde) {
             return absent();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new MocoException(e);
         } finally {
             if (decoder != null) {
                 decoder.destroy();
@@ -36,7 +37,7 @@ public class FormsRequestExtractor implements RequestExtractor<ImmutableMap<Stri
         }
     }
 
-    private ImmutableMap<String, String> doExtractForms(HttpPostRequestDecoder decoder) throws IOException {
+    private ImmutableMap<String, String> doExtractForms(final HttpPostRequestDecoder decoder) throws IOException {
         List<InterfaceHttpData> bodyHttpDatas = decoder.getBodyHttpDatas();
         Map<String, String> forms = newHashMap();
         for (InterfaceHttpData data : bodyHttpDatas) {

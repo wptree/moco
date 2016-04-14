@@ -4,8 +4,8 @@ import java.io.File;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class Files {
-    public static String join(String path1, String path2, String... paths) {
+public final class Files {
+    public static String join(final String path1, final String path2, final String... paths) {
         String finalPath = actualJoin(path1, path2);
         for (String path : paths) {
             finalPath = actualJoin(finalPath, path);
@@ -14,11 +14,11 @@ public class Files {
         return finalPath;
     }
 
-    private static String actualJoin(String path1, String path2) {
+    private static String actualJoin(final String path1, final String path2) {
         return joinedFile(path1, path2).getPath();
     }
 
-    private static File joinedFile(String path1, String path2) {
+    private static File joinedFile(final String path1, final String path2) {
         checkNotNull(path2);
 
         if (path1 == null) {
@@ -28,5 +28,6 @@ public class Files {
         return new File(new File(path1), path2);
     }
 
-    private Files() {}
+    private Files() {
+    }
 }

@@ -1,11 +1,12 @@
 package com.github.dreamhead.moco.verification;
 
-public class TimesVerification extends AbstractVerification {
+public class TimesVerification extends UnaryTimesVerification {
     public TimesVerification(final int count) {
         super(count);
     }
 
-    protected boolean meet(final int size) {
+    @Override
+    protected boolean doMeet(final int size, final int count) {
         return size == count;
     }
 }

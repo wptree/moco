@@ -1,12 +1,12 @@
 package com.github.dreamhead.moco.verification;
 
-public class AtLeastVerification extends AbstractVerification {
+public class AtLeastVerification extends UnaryTimesVerification {
     public AtLeastVerification(final int count) {
         super(count);
     }
 
     @Override
-    protected boolean meet(final int size) {
+    protected boolean doMeet(final int size, final int count) {
         return size >= count;
     }
 }
